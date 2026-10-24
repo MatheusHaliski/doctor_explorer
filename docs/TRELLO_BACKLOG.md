@@ -83,8 +83,11 @@ nos docs de RF.
 | T07 | Ícones SVGR em `packages/ui-web` a partir de `design/icons` | 3 | 🟡 (SVGs ✅; SVGR ⏳) |
 | T08 | Protótipo `design/prototype/index.html` + `render.mjs` | 5 | ✅ |
 
-Histórias já implementadas na API (sem telas reais): **US01, US02, US03 (só senha; TOTP no passo 3)** ·
-`AuthFlowIT` cobre cadastro, código, ativação, logout, login, 422 agrupado, CSRF, limite e reenvio.
+Histórias já implementadas na API (telas só no protótipo): **US01–US06** (cadastro, código, login em
+etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 ⏳), **US22–US24** (consentimentos, seus
+dados/exportação, exclusão com carência e reativação), **US25 parcial** (papéis globais + 2FA obrigatório;
+papéis institucionais com o RF11). Cobertura: `AuthFlowIT`, `MfaIT`, `CredentialingIT`, `AccessMatrixIT`,
+`PrivacyIT`.
 
 ## ❓ Questões abertas
 

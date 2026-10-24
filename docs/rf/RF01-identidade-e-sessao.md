@@ -242,7 +242,7 @@ flowchart TD
 | Serviço | `Totp` (RFC 6238, janela ±1, vetores do RFC no teste), `MfaService` (segredo cifrado com subchave "mfa", 10 códigos de recuperação de uso único, 5 falhas/5 min), modo sudo de 10 min em `SessionSupport` | ✅ |
 | API | `AuthController` (`/csrf`, `/register`, `/login`, `/login/2fa`, `/reactivate`, `/logout`, `/session`), `MeController` (`/me`, `/me/verify-email` reautentica para o principal refletir ACTIVE, `/me/verify-email/resend`) | ✅ |
 | Sessão | `SessionSupport.authenticate` carrega papéis globais (`user_role`) como `ROLE_*` e a flag `de.session.mfaEnabled` usada pelas rotas que exigem 2FA (RF12) | ✅ |
-| API | `MeSecurityController`: `POST /me/sudo`, `POST /me/password` (sudo, derruba as outras sessões), `GET /me/mfa`, `POST /me/mfa/totp/setup|confirm`, `POST /me/mfa/recovery-codes`, `DELETE /me/mfa`, `GET/DELETE /me/sessions[/{handle}]` (apelido por hash, nunca o id real) | ✅ |
+| API | `MeSecurityController`: `POST /me/sudo`, `POST /me/password` (sudo, derruba as outras sessões), `GET /me/mfa`, `POST /me/mfa/totp/setup|confirm`, `POST /me/mfa/recovery-codes`, `DELETE /me/mfa`, `GET/DELETE /me/sessions[/{handle}]` (apelido por hash, nunca o id real), `POST /me/deletion` (sudo; RF10) | ✅ |
 | Web | telas Login, Cadastro, Segurança (protótipo em `design/prototype`: Sessões e segurança ✅) | 🟡 |
 | Testes | `SchemaConsistencyTest`, `AccountStatusTest`, `EmailVerificationTest`, `PasswordPolicyTest`, `AppSecretPropertiesTest`, `SecurityHeadersTest` | ✅ |
 | Testes | `AuthFlowIT` com `support/ApiClient` (CSRF + sessão real no Valkey): cadastro → código → ativação → logout → login, 422 agrupado, CSRF, limite por conta, reenvio | ✅ |

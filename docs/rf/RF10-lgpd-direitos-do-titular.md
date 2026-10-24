@@ -184,8 +184,13 @@ Registros clínicos (RF08, RF09) **não** entram na saga: ficam no cofre clínic
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Migração | `V1` (consent_event, terms_acceptance, user_key) | ⏳ |
-| Serviço | `PrivacyService`, `ErasureSaga`, `ExportWorker` | ⏳ |
-| Job | `ErasureJob` | ⏳ |
-| Web | telas de Privacidade | ⏳ |
-| Testes | `DeletionSagaIT` (idempotência, falha no meio), `ConsentIT` | ⏳ |
+| Migração | `V1` (consent_event, terms_acceptance, user_key, carência em user_account) · `V3__privacidade.sql` (data_export_request, dpo_ticket) | ✅ |
+| Domínio | `ConsentPurpose` (4 finalidades, base legal), `ConsentEvent` (histórico append-only), `DataExportRequest` (24 h), `DpoTicket` (protocolo, prazo 15 dias) | ✅ |
+| Serviço | `PrivacyService`: consentimentos (estado = evento mais recente, padrão desligado), "seus dados", exportação JSON v1, compartilhamento (operadores), exclusão com carência + e-mail, canal do Encarregado | ✅ |
+| Serviço | `ErasureSaga` idempotente: credencial, 2FA, verificação, preferências, perfil/RQE, exportações, auditoria de login, sessões e limites no Valkey, **DEK destruída**, lápide anônima; `consent_event`/`terms_acceptance` ficam como prova (Art. 16, I) | ✅ |
+| Serviço | passos S3 (mídia) e Cassandra (mensagens) da saga | ⏳ com RF05/RF06 |
+| Serviço | ZIP cifrado por URL pré-assinada (hoje: JSON autenticado por 24 h) | ⏳ com o S3 (RF05) |
+| Job | `ErasureJob` (03:15, cron configurável) | ✅ |
+| API | `GET/PUT /privacy/consents[/{purpose}]`, `GET /privacy/consents/history`, `GET /privacy/data`, `GET /privacy/sharing`, `POST /privacy/export` + `GET /privacy/export/{id}`, `POST/GET /privacy/dpo-requests`, `POST /me/deletion` (sudo, encerra sessões), `POST /auth/reactivate`, `GET /privacy/dpo/tickets` + `POST .../answer` (DPO + 2FA) | ✅ |
+| Web | telas de Privacidade (protótipo em `design/prototype/#/privacidade` e `#/encarregado`) | 🟡 protótipo |
+| Testes | `PrivacyIT`: consentimentos desligados + histórico, seus dados + exportação (dono ou 404), exclusão exige sudo → oferta de reativação → reativa, saga anonimiza/destrói DEK/é idempotente/login neutro, Encarregado com protocolo e 422 | ✅ |

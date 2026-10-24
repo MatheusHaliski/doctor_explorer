@@ -4,6 +4,7 @@ import com.doctorexplorer.core.identity.domain.UserAccount;
 import com.doctorexplorer.core.identity.repo.UserAccounts;
 import com.doctorexplorer.core.identity.service.LoginService;
 import com.doctorexplorer.core.identity.service.MfaService;
+import com.doctorexplorer.core.privacy.service.PrivacyService;
 import com.doctorexplorer.core.web.ApiExceptionHandler.FieldProblem;
 import com.doctorexplorer.core.web.ApiProblemException;
 import com.doctorexplorer.core.web.ValidationProblemException;
@@ -36,12 +37,26 @@ public class MeSecurityController {
     private final LoginService login;
     private final MfaService mfa;
     private final SessionSupport sessions;
+    private final PrivacyService privacy;
 
-    public MeSecurityController(UserAccounts accounts, LoginService login, MfaService mfa, SessionSupport sessions) {
+    public MeSecurityController(UserAccounts accounts, LoginService login, MfaService mfa, SessionSupport sessions, PrivacyService privacy) {
         this.accounts = accounts;
         this.login = login;
         this.mfa = mfa;
         this.sessions = sessions;
+        this.privacy = privacy;
+    }
+
+    /** RF10 · Art. 18, VI: exclusão com carência de 30 dias. Sudo (senha + código) e encerra as outras sessões. */
+    @PostMapping("/deletion")
+    Map<String, Object> requestDeletion(HttpServletRequest request) {
+        sessions.requireSudo(request);
+        UUID userId = sessions.require().userId();
+        UserAccount a = privacy.requestDeletion(userId);
+        sessions.endOthers(request, userId);
+        sessions.invalidate(request);
+        return Map.of("status", a.getStatus().name(), "graceEndsAt", String.valueOf(a.getGraceEndsAt()),
+                "note", "Entre de novo até essa data para reativar. Registros clínicos ficam guardados por 20 anos por obrigação legal.");
     }
 
     /** Modo sudo: senha (+ código se o 2FA estiver ativo). Vale 10 min nesta sessão. */

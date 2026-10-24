@@ -37,6 +37,13 @@ public class ApiClient {
         return exchange(b);
     }
 
+    public MockHttpServletResponse put(String path, String json) throws Exception {
+        if (!jar.containsKey("XSRF-TOKEN")) get("/api/v1/auth/csrf");
+        MockHttpServletRequestBuilder b = MockMvcRequestBuilders.put(path).header("X-XSRF-TOKEN", jar.get("XSRF-TOKEN").getValue());
+        if (json != null) b.contentType(MediaType.APPLICATION_JSON).content(json);
+        return exchange(b);
+    }
+
     /** Cadastro completo com valores válidos; devolve a resposta para o teste inspecionar. */
     public MockHttpServletResponse register(String email, String password) throws Exception {
         return post("/api/v1/auth/register", """
@@ -51,6 +58,10 @@ public class ApiClient {
         Matcher m = Pattern.compile("Seu código é (\\d{6})").matcher(sent.get(sent.size() - 1).body());
         if (!m.find()) throw new IllegalStateException("nenhum código de verificação no outbox");
         return post("/api/v1/me/verify-email", "{\"code\":\"" + m.group(1) + "\"}");
+    }
+
+    public MockHttpServletResponse sudo(String password) throws Exception {
+        return post("/api/v1/me/sudo", "{\"password\":\"" + password + "\"}");
     }
 
     public MockHttpServletResponse login(String email, String password) throws Exception {
