@@ -41,7 +41,8 @@ class TotpTest {
     void base32AndOtpauthUri() {
         assertThat(Totp.base32("Hello!".getBytes(StandardCharsets.US_ASCII))).isEqualTo("JBSWY3DPEE");
         String uri = Totp.otpauthUri(RFC_SECRET, "Doctor Explorer", "ana@example.org");
-        assertThat(uri).startsWith("otpauth://totp/Doctor%20Explorer:ana%40example.org?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+        // segredo público do RFC 6238 ("12345678901234567890" em base32), não é credencial
+        assertThat(uri).startsWith("otpauth://totp/Doctor%20Explorer:ana%40example.org?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ") // gitleaks:allow
                 .contains("issuer=Doctor%20Explorer").contains("digits=6").contains("period=30");
     }
 }
