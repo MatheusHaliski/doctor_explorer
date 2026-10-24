@@ -27,7 +27,7 @@ services:
       retries: 20
 
   garage:
-    image: dxflrs/garage:v2.4.0
+    image: dxflrs/garage:v2.4.1
     volumes:
       - ./infra/garage/garage.toml:/etc/garage.toml:ro
       - garagemeta:/var/lib/garage/meta
