@@ -32,6 +32,8 @@ história em [docs/TRELLO_BACKLOG.md](docs/TRELLO_BACKLOG.md).
 - Logo oficial: `design/brand/logo-doctor-explorer.svg`; marca compacta: `design/brand/logo-mark.svg`.
 - Ícones da barra lateral e da topbar, em plástico azul derivado do logo: `design/icons/` (gerados por
   `design/icons/build_icons.py`; prévia em `design/icons/preview.png`).
+- Artes de fundo (Aparência): `design/brand/backgrounds/` (5 opções; `build_thumbs.py` copia para o web e gera
+  miniaturas). Contraste do texto sobre elas: `python3 scripts/background_contrast.py`.
 - Tokens e tabela de contraste: `design/prototype/tokens.css`, [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md),
   verificados por `python3 scripts/wcag_contrast.py`.
 - **Protótipo navegável** (HTML/CSS/JS puro): `design/prototype/index.html`. Feed segmentado por tipo,
@@ -71,7 +73,7 @@ pnpm check                                     # typecheck + eslint + vitest + n
 Telas: `/login` (senha → 2FA → reativação), `/cadastro`, `/verificar-email`, `/feed` (quatro eixos na
 URL), `/casos/novo`, `/casos/[id]`, `/grupos`, `/perfil` (+ selo CRM/RQE), `/perfil/[id]`,
 `/privacidade`, `/seguranca`, `/instituicoes`, `/instituicoes/nova`, `/instituicoes/[id]`, `/instituicoes/[id]/gestao`
-(gestores), `/moderacao` (moderadores com 2FA). No perfil `dev` da API, `POST /api/v1/dev/roles/{role}` e
+(gestores), `/moderacao` (moderadores com 2FA), `/aparencia` (arte de fundo, intensidade, tema, tamanho do texto). No perfil `dev` da API, `POST /api/v1/dev/roles/{role}` e
 `POST /api/v1/dev/credentials/manual-review` ajudam a testar papéis e a fila sem mexer no banco.
 
 ## CI

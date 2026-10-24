@@ -186,6 +186,7 @@ Registros clínicos (RF08, RF09) **não** entram na saga: ficam no cofre clínic
 |---|---|---|
 | Migração | `V1` (consent_event, terms_acceptance, user_key, carência em user_account) · `V3__privacidade.sql` (data_export_request, dpo_ticket) | ✅ |
 | Domínio | `ConsentPurpose` (4 finalidades, base legal), `ConsentEvent` (histórico append-only), `DataExportRequest` (24 h), `DpoTicket` (protocolo, prazo 15 dias) | ✅ |
+| Serviço | "Seus dados" inclui as preferências de aparência (`arteDeFundo`, `intensidadeDoVeu`), além de idioma, tema, fonte e modo plantão | ✅ |
 | Serviço | `PrivacyService`: consentimentos (estado = evento mais recente, padrão desligado), "seus dados", exportação JSON v1, compartilhamento (operadores), exclusão com carência + e-mail, canal do Encarregado | ✅ |
 | Serviço | `ErasureSaga` idempotente: credencial, 2FA, verificação, preferências, perfil/RQE, exportações, auditoria de login, sessões e limites no Valkey, **DEK destruída**, lápide anônima; `consent_event`/`terms_acceptance` ficam como prova (Art. 16, I) | ✅ |
 | Serviço | passos S3 (mídia) e Cassandra (mensagens) da saga | ⏳ com RF05/RF06 |

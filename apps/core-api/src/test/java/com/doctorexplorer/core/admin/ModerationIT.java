@@ -145,7 +145,8 @@ class ModerationIT {
         ApiClient mod = moderator();
         assertThat(mod.get("/api/v1/admin/moderation/queue").getContentAsString()).contains("\"specialtyCode\":\"DERM\"").contains(userId.toString());
         assertThat(mod.post("/api/v1/admin/moderation/groups/derm/members/" + userId + "/approve", null).getContentAsString()).contains("\"state\":\"ACTIVE\"");
-        assertThat(doc.get("/api/v1/groups").getContentAsString()).contains("\"specialtyCode\":\"DERM\",\"name\"");
+        assertThat(doc.get("/api/v1/groups").getContentAsString())
+                .contains("{\"specialtyCode\":\"DERM\",\"name\":\"Dermatologia\",\"joinPolicy\":\"RQE_OR_APPROVAL\",\"membership\":\"ACTIVE\"}");
         // outros testes podem ter deixado pedidos de DERM de outras contas; o desta conta some da fila
         assertThat(mod.get("/api/v1/admin/moderation/queue").getContentAsString()).doesNotContain(userId.toString());
     }

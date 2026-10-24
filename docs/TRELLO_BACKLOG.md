@@ -69,6 +69,7 @@ nos docs de RF.
 | US27 | Como médico quero buscar instituições por especialidade e raio | RF11 | 5 |
 | US28 | Como gestor quero ver métricas agregadas de engajamento | RF13 | 5 |
 | US29 | Como auditor quero consultar e exportar a auditoria com justificativa | RF13 | 5 |
+| US30 | Como profissional quero escolher a arte de fundo, a intensidade, o tema e o tamanho do texto, e ter isso em qualquer aparelho | RF01 | 3 |
 
 ## 🏃 Sprint 1 · Fundação · tarefas técnicas
 
@@ -84,7 +85,7 @@ nos docs de RF.
 | T08 | Protótipo `design/prototype/index.html` + `render.mjs` | 5 | ✅ |
 | T09 | `apps/web`: Next.js 16 consumindo a core-api (login, cadastro, feed, caso, grupos, perfil, privacidade, segurança, instituições, gestão institucional, moderação) + jobs `web` e `web-e2e` no CI | 13 | ✅ |
 
-Histórias já implementadas na API **e na web real (`apps/web`)**: **US01–US06** (cadastro, código, login em
+Histórias já implementadas na API **e na web real (`apps/web`)**: **US30** (Aparência com 5 artes de fundo), **US01–US06** (cadastro, código, login em
 etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 na fila `/moderacao`), **US08–US10** (grupos por RQE, caso
 anonimizado com bloqueio por identificador, parecer; feed segmentado por tipo/especialidade/origem/estado),
 **US07** (perfil com visibilidade e publicidade médica), **US22–US24** (consentimentos, seus

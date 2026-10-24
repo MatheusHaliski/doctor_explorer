@@ -102,7 +102,7 @@ public class PrivacyService {
         out.put("conta", Map.of("id", a.getId().toString(), "nome", a.getDisplayName(), "email", a.getEmail(),
                 "nascimento", a.getBirthDate().toString(), "status", a.getStatus().name(), "criadaEm", a.getCreatedAt().toString()));
         preferences.findById(userId).ifPresent(p -> out.put("preferencias", Map.of("idioma", p.getLocale(), "tema", p.getTheme(),
-                "escalaFonte", p.getFontScale(), "modoPlantao", p.isOnCallMode())));
+                "escalaFonte", p.getFontScale(), "modoPlantao", p.isOnCallMode(), "arteDeFundo", p.getBackground(), "intensidadeDoVeu", p.getBackgroundVeil())));
         profiles.findById(userId).ifPresent(p -> out.put("perfilProfissional", Map.of("crm", String.valueOf(p.getCrmNumber()), "uf", String.valueOf(p.getCrmUf()),
                 "selo", p.getSeal().name(), "visibilidade", p.getVisibility().name(),
                 "especialidades", claims.findByUserId(userId).stream().map(c -> Map.of("codigo", c.getSpecialtyCode(), "rqe", c.getRqe(), "confirmada", c.isConfirmed())).toList())));

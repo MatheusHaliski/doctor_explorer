@@ -71,6 +71,8 @@ jobs:
           node-version: 22
       - name: Contraste WCAG dos tokens
         run: python3 scripts/wcag_contrast.py
+      - name: Contraste do texto sobre as artes de fundo (véu mínimo + painel de leitura)
+        run: pip install pillow==12.3.0 && python3 scripts/background_contrast.py --min-veil 20 --panel 92
       - name: Ícones regenerados batem com o repositório
         run: python3 design/icons/build_icons.py && git diff --exit-code -- design/icons
       - name: Playwright
@@ -99,6 +101,7 @@ jobs:
           diff -r design/icons/topbar apps/web/public/icons/topbar
           diff design/prototype/tokens.css apps/web/styles/tokens.css
           diff design/brand/logo-mark.svg apps/web/public/brand/logo-mark.svg
+          for f in design/brand/backgrounds/*.webp; do cmp "$f" "apps/web/public/backgrounds/$(basename "$f")"; test -f "apps/web/public/backgrounds/thumbs/$(basename "$f")"; done
       - name: typecheck + lint + vitest + next build
         working-directory: apps/web
         env:

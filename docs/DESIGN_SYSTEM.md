@@ -24,6 +24,38 @@ semânticos → componentes**. Tema claro é o padrão; escuro por `prefers-colo
   ajustável de 85 a 150 % sem quebrar layout (tudo em `rem`).
 - Vermelho (`--danger`) nunca em texto normal (heurística 8).
 
+## Artes de fundo (Aparência)
+
+Cinco artes de ícones de saúde, escolhidas em **Aparência** e salvas na conta: Aurora clara, Neon escuro, Azul
+noturno, Âmbar e Neon colorido (originais em `design/brand/backgrounds/`; `build_thumbs.py` copia para
+`apps/web/public/backgrounds/` e gera miniaturas 360×240). "Sem arte" é o padrão.
+
+Camadas, de trás para a frente:
+
+1. **Arte** cobrindo a página (`.app-bg`, fixa, decorativa, `aria-hidden`).
+2. **Véu** da cor de superfície do tema com opacidade `--bg-veil`: Forte 20 %, Média 45 %, Suave 70 %
+   (a API aceita 20–80).
+3. **Painel de leitura** (`main`) com 92 % da superfície e desfoque de 10 px. Todo texto fica aqui ou em cards
+   opacos, nunca direto sobre a arte. Com `prefers-reduced-transparency`, o painel fica opaco.
+
+Contraste com a arte mais forte (véu 20 %) e o painel a 92 %, nos pixels mais claros e mais escuros de cada arte
+(`python3 scripts/background_contrast.py --md`, roda no CI):
+
+| Arte | Tema | text | text-2 | text-3 | brand-text |
+|---|---|---|---|---|---|
+| aurora-clara | claro | 13.3:1 | 7.9:1 | 4.7:1 | 5.9:1 |
+| aurora-clara | escuro | 13.3:1 | 9.1:1 | 6.0:1 | 7.4:1 |
+| neon-escuro | claro | 13.0:1 | 7.7:1 | 4.6:1 | 5.8:1 |
+| neon-escuro | escuro | 13.6:1 | 9.4:1 | 6.1:1 | 7.6:1 |
+| azul-noturno | claro | 13.3:1 | 7.8:1 | 4.7:1 | 5.9:1 |
+| azul-noturno | escuro | 13.5:1 | 9.3:1 | 6.1:1 | 7.6:1 |
+| ambar | claro | 13.6:1 | 8.0:1 | 4.8:1 | 6.0:1 |
+| ambar | escuro | 13.0:1 | 9.0:1 | 5.9:1 | 7.3:1 |
+| neon-colorido | claro | 13.1:1 | 7.7:1 | 4.7:1 | 5.8:1 |
+| neon-colorido | escuro | 13.4:1 | 9.2:1 | 6.1:1 | 7.5:1 |
+
+Um véu sozinho não basta: sem o painel, `text-3` no tema claro cai para 3,4:1 mesmo com véu de 80 %.
+
 ## Tabela de contraste (gerada por `scripts/wcag_contrast.py --md`)
 
 | Par | Uso | Mínimo | Claro | Escuro |

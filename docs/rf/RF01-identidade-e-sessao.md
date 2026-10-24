@@ -6,6 +6,9 @@ cards: [US01, US02, US03, US04]
 paths:
   - apps/core-api/src/main/java/**/identity/**
   - apps/core-api/src/main/resources/db/migration/V1__*.sql
+  - apps/core-api/src/main/resources/db/migration/V6__*.sql
+  - apps/web/app/(app)/aparencia/**
+  - apps/web/lib/appearance.ts
   - apps/web/app/(auth)/**
   - apps/web/app/(app)/seguranca/**
   - apps/web/lib/api.ts
@@ -33,6 +36,10 @@ códigos de recuperação e **modo sudo**. Nunca JWT no cliente (ADR-008).
    (senha + TOTP), que vale 10 min.
 7. `GET/DELETE /me/sessions` lista aparelhos sem expor o id real da sessão.
 8. Moderador, Admin e Gestor hospitalar não usam a conta sem 2FA ativo.
+9. **Aparência** (preferências da conta, sincronizam entre aparelhos): tema (sistema/claro/escuro), tamanho do
+   texto (85–150 %) e arte de fundo entre cinco opções, com intensidade Forte/Média/Suave (véu de 20 a 80 %).
+   O texto nunca fica direto sobre a arte: o conteúdo fica num painel de leitura a 92 % da cor de superfície,
+   e `scripts/background_contrast.py` garante 4,5:1 para todos os tokens de texto com a arte mais forte.
 
 ## Base legal
 
@@ -249,5 +256,9 @@ flowchart TD
 | Web | `apps/web` (Next.js 16): `/login` em etapas (senha → 2FA → reativação, 429 com Retry-After), `/cadastro` (caixas desmarcadas, 422 por campo, versão dos textos), `/verificar-email` (código, reenvio), `/seguranca` (sudo 10 min, troca de senha, TOTP + códigos de recuperação, sessões por aparelho, pedir exclusão). `lib/api.ts`: mesma origem via rewrite, CSRF SPA (`XSRF-TOKEN` → `X-XSRF-TOKEN`), Problem Details; `lib/server-api.ts`: guarda de sessão no servidor (`(app)/layout.tsx`). Nunca token no cliente | ✅ |
 | Testes | `SchemaConsistencyTest`, `AccountStatusTest`, `EmailVerificationTest`, `PasswordPolicyTest`, `AppSecretPropertiesTest`, `SecurityHeadersTest` | ✅ |
 | Testes | `AuthFlowIT` com `support/ApiClient` (CSRF + sessão real no Valkey): cadastro → código → ativação → logout → login, 422 agrupado, CSRF, limite por conta, reenvio | ✅ |
+| Migração | `V6__aparencia.sql`: `background` (none + 5 artes) e `background_veil` (20–80) em `user_preference`, com `check` | ✅ |
+| API | `PreferencesController`: `GET/PUT /api/v1/me/preferences` (só os campos enviados mudam; 422 com todos os erros; linha criada com os padrões na primeira leitura) | ✅ |
+| Web | `/aparencia` (miniaturas, intensidade, tema, tamanho do texto, desfazer), `lib/appearance.ts` (aplica no `<html>` e guarda cópia local só para não piscar), `AppearanceSync` no layout (servidor é a fonte da verdade), camadas arte → véu → painel em `globals.css`; artes em `design/brand/backgrounds` copiadas por `build_thumbs.py` | ✅ |
+| Testes | `PreferencesIT` (padrões, atualização parcial, 422 agrupado, entra em "seus dados"), `apps/web/tests/appearance.test.ts` (aplicação no `<html>`, script de boot), e2e com as 5 artes, intensidade, painel de leitura e sincronização com outro aparelho, `background_contrast.py` no CI | ✅ |
 | Testes | `apps/web/e2e/flow.cjs` (navegador real contra a API real, job `web-e2e`): cadastro → código → selo → grupo → caso → feed → LGPD → sudo → logout → login neutro; `apps/web/tests` (cliente da API, eixos do feed) | ✅ |
 | Testes | `TotpTest`, `MfaIT` (sudo obrigatório, ativar TOTP, login em etapas, código de recuperação de uso único, bloqueio após 5 erros, troca de senha derruba outras sessões, listagem sem ids reais) | ✅ |

@@ -62,9 +62,14 @@ public class CommunityController {
     Map<String, Object> groups() {
         UUID userId = access.requireVerifiedSealOrModerator().userId();
         Map<UUID, GroupMembership.State> mine = community.membershipsOf(userId);
-        return Map.of("groups", community.listGroups().stream().map(g -> Map.of(
-                "specialtyCode", g.getSpecialtyCode(), "name", g.getName(), "joinPolicy", g.getJoinPolicy().name(),
-                "membership", mine.containsKey(g.getId()) ? mine.get(g.getId()).name() : "NONE")).toList());
+        return Map.of("groups", community.listGroups().stream().map(g -> {
+            Map<String, Object> v = new LinkedHashMap<>(); // ordem estável dos campos no JSON
+            v.put("specialtyCode", g.getSpecialtyCode());
+            v.put("name", g.getName());
+            v.put("joinPolicy", g.getJoinPolicy().name());
+            v.put("membership", mine.containsKey(g.getId()) ? mine.get(g.getId()).name() : "NONE");
+            return v;
+        }).toList());
     }
 
     @PostMapping("/groups/{code}/join")

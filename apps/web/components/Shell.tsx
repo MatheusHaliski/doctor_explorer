@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { api } from "@/lib/api";
-import { isDark, setDark, subscribeTheme } from "@/lib/theme";
+import { isDark, readCachedAppearance, setAppearance, subscribeAppearance } from "@/lib/appearance";
 import { Seal } from "./Seal";
 
 type Props = { user: { userId: string; displayName: string; status: string; roles?: string[] }; seal: string; children: ReactNode };
@@ -27,15 +27,20 @@ const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; s
   { sep: "Conta" },
   { href: "/perfil", label: "Perfil", icon: "/icons/topbar/perfil.svg" },
   { href: "/privacidade", label: "Privacidade", icon: "/icons/nav/privacidade.svg" },
-  { href: "/seguranca", label: "Sessões e segurança", icon: "/icons/nav/configuracoes.svg" },
+  { href: "/seguranca", label: "Sessões e segurança", icon: "/icons/topbar/e2ee.svg" },
+  { href: "/aparencia", label: "Aparência", icon: "/icons/nav/configuracoes.svg" },
 ];
 
 export function Shell({ user, seal, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const dark = useSyncExternalStore(subscribeTheme, isDark, () => false);
-  const toggleTheme = () => setDark(!dark);
+  const dark = useSyncExternalStore(subscribeAppearance, isDark, () => false);
+  const toggleTheme = () => {
+    const next = { ...readCachedAppearance(), theme: dark ? ("light" as const) : ("dark" as const) };
+    setAppearance(next);
+    api.put("/api/v1/me/preferences", { theme: next.theme }).catch(() => {}); // a troca já valeu na tela; a sincronização tenta de novo na próxima mudança
+  };
   const close = () => setOpen(false);
 
   async function logout() {

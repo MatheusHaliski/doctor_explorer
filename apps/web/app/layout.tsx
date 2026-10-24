@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { THEME_BOOT_SCRIPT } from "@/lib/theme";
+import { APPEARANCE_BOOT_SCRIPT } from "@/lib/appearance";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,9 +16,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOT_SCRIPT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* arte de fundo escolhida em Aparência; decorativa, fica atrás de tudo */}
+        <div className="app-bg" aria-hidden="true" />
+        {children}
+      </body>
     </html>
   );
 }

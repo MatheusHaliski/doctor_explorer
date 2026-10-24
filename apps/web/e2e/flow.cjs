@@ -233,6 +233,41 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await page.getByText("Convidar para o corpo clínico").waitFor();
   ok("perfil de colega mostra convite para quem gere instituição", true);
 
+  // ---- RF01 · Aparência: arte de fundo (5 opções), intensidade e tema; salvo na conta ----
+  await page.goto(BASE + "/aparencia");
+  for (const [id, name] of [["aurora-clara", "Aurora clara"], ["neon-escuro", "Neon escuro"], ["azul-noturno", "Azul noturno"], ["ambar", "Âmbar"], ["neon-colorido", "Neon colorido"]]) {
+    await page.locator("label.choice", { hasText: name }).click();
+    await page.getByText(`Arte de fundo: ${name}.`).waitFor();
+    ok(`arte ${name} aplicada no <html>`, (await page.evaluate(() => document.documentElement.dataset.bg)) === id);
+    await page.goto(BASE + "/feed");
+    await page.locator(".post").first().waitFor();
+    await shot(`16-fundo-${id}`);
+    await page.goto(BASE + "/aparencia");
+  }
+  await page.locator(".segmented label", { hasText: "Forte" }).click();
+  await page.getByText("Intensidade: forte.").waitFor();
+  await shot("16-aparencia");
+  ok("intensidade forte = véu 20 %", (await page.evaluate(() => document.documentElement.style.getPropertyValue("--bg-veil"))) === "20%");
+  const panelBg = await page.evaluate(() => getComputedStyle(document.querySelector("main")).backgroundColor);
+  ok("conteúdo num painel de leitura sobre a arte", panelBg !== "rgba(0, 0, 0, 0)" && panelBg !== "transparent", panelBg);
+  await page.locator(".segmented label", { hasText: "Escuro" }).click();
+  await page.getByText("Tema: escuro.").waitFor();
+  await page.goto(BASE + "/feed");
+  await shot("17-fundo-neon-colorido-escuro-forte");
+  // outro aparelho (contexto novo, sem cópia local) recebe a mesma aparência da conta ao entrar
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "pt-BR" });
+  const p2 = await ctx2.newPage();
+  await p2.goto(BASE + "/login");
+  await p2.fill("#email", email); await p2.fill("#password", password);
+  await p2.getByRole("button", { name: "Entrar" }).click();
+  await p2.waitForURL("**/feed");
+  await p2.waitForFunction(() => document.documentElement.dataset.bg === "neon-colorido");
+  ok("aparência sincroniza com outro aparelho", (await p2.evaluate(() => document.documentElement.dataset.theme)) === "dark");
+  await ctx2.close();
+  await page.goto(BASE + "/aparencia");
+  await page.locator(".segmented label", { hasText: "Sistema" }).click();
+  await page.getByText("Tema: sistema.").waitFor();
+
   // tema escuro
   await page.getByRole("button", { name: "Alternar tema escuro" }).click();
   ok("tema escuro aplicado", (await page.evaluate(() => document.documentElement.dataset.theme)) === "dark");
