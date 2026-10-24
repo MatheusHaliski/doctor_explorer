@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ícones Doctor Explorer</title>
+<style>
+  :root{
+    --color-brand-500:#1565E0; --color-brand-700:#0D47B3;
+    --bg:#FFFFFF; --surface:#F6F4EF; --line:#D9DEE7; --text:#17202E; --text-2:#4B5565; --text-3:#6B7686;
+    --brand:var(--color-brand-500); --on-brand:#FFFFFF;
+    --seal-verified:#1E7F3A; --seal-pending:#8A5A00; --seal-rejected:#B3261E;
+    --radius-md:12px; --radius-lg:20px; --tap-min:44px; --font-sans:Nunito,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#0F1621; --surface:#171F2C; --line:#2A3443; --text:#EEF2F7; --text-2:#B7C0CE; --text-3:#8A95A6;
+    --brand:#6FA6FF; --on-brand:#0B1B36; --seal-verified:#6FD28A; --seal-pending:#F3C56B; --seal-rejected:#FF8A80;
+  }}
+  *{box-sizing:border-box} body{margin:0;background:var(--surface);color:var(--text);font-family:var(--font-sans)}
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  aside{background:var(--bg);border-right:1px solid var(--line);padding:16px}
+  .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 16px;font-weight:800;font-size:18px;color:var(--brand)}
+  .brand img{width:36px;height:36px}
+  nav a{display:flex;align-items:center;gap:12px;min-height:var(--tap-min);padding:0 12px;border-radius:var(--radius-md);color:var(--text-2);text-decoration:none;font-weight:600}
+  nav a.active{background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand);--icon-accent:var(--brand)}
+  nav a:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+  nav img{width:24px;height:24px}
+  header{display:flex;align-items:center;gap:8px;background:var(--bg);border-bottom:1px solid var(--line);padding:0 16px;height:60px}
+  header .sp{flex:1}
+  .ib{display:grid;place-items:center;width:var(--tap-min);height:var(--tap-min);border-radius:var(--radius-md);color:var(--text-2);background:transparent;border:0}
+  .ib img{width:24px;height:24px}
+  .seal{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:14px;font-weight:700;border:1px solid var(--line)}
+  .seal img{width:18px;height:18px}
+  .v{color:var(--seal-verified);--icon-accent:var(--seal-verified)} .p{color:var(--seal-pending);--icon-accent:var(--seal-pending)} .r{color:var(--seal-rejected);--icon-accent:var(--seal-rejected)}
+  main{padding:24px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:8px}
+  .cell{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;color:var(--text-3)}
+  .cell img{width:32px;height:32px}
+  h2{font-size:16px;margin:24px 0 4px;color:var(--text-2)}
+  /* SVG via <img> não herda currentColor; a prévia usa um filtro só para mostrar o tom, no app os ícones são inline (SVGR) */
+  img.ic{filter:none} .cell img{width:40px;height:40px} nav img{width:26px;height:26px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><img src="../brand/logo-mark.svg" alt="">Doctor Explorer</div>
+    <nav aria-label="Principal">
+      <a href="#" class="active"><img class="ic" src="nav/inicio.svg" alt="">Início</a>
+      <a href="#"><img class="ic" src="nav/casos-clinicos.svg" alt="">Casos clínicos</a>
+      <a href="#"><img class="ic" src="nav/grupos.svg" alt="">Grupos</a>
+      <a href="#"><img class="ic" src="nav/mensagens.svg" alt="">Mensagens</a>
+      <a href="#"><img class="ic" src="nav/chamadas.svg" alt="">Chamadas</a>
+      <a href="#"><img class="ic" src="nav/prontuario.svg" alt="">Prontuário</a>
+      <a href="#"><img class="ic" src="nav/prescricao.svg" alt="">Prescrições</a>
+      <a href="#"><img class="ic" src="nav/exames.svg" alt="">Exames</a>
+      <a href="#"><img class="ic" src="nav/instituicoes.svg" alt="">Instituições</a>
+      <a href="#"><img class="ic" src="nav/administracao.svg" alt="">Administração</a>
+      <a href="#"><img class="ic" src="nav/privacidade.svg" alt="">Privacidade</a>
+      <a href="#"><img class="ic" src="nav/configuracoes.svg" alt="">Configurações</a>
+    </nav>
+  </aside>
+  <div>
+    <header>
+      <button class="ib" aria-label="Menu"><img src="topbar/menu.svg" alt=""></button>
+      <button class="ib" aria-label="Buscar"><img src="topbar/buscar.svg" alt=""></button>
+      <span class="sp"></span>
+      <span class="seal v"><img src="topbar/selo-verificado.svg" alt="">CRM verificado</span>
+      <span class="seal p"><img src="topbar/selo-pendente.svg" alt="">Em análise</span>
+      <span class="seal r"><img src="topbar/selo-rejeitado.svg" alt="">Não verificado</span>
+      <button class="ib" aria-label="Criptografada ponta a ponta"><img src="topbar/e2ee.svg" alt=""></button>
+      <button class="ib" aria-label="Modo plantão"><img src="topbar/modo-plantao.svg" alt=""></button>
+      <button class="ib" aria-label="Nova mensagem"><img src="topbar/nova-mensagem.svg" alt=""></button>
+      <button class="ib" aria-label="Notificações"><img src="topbar/notificacoes.svg" alt=""></button>
+      <button class="ib" aria-label="Ajuda"><img src="topbar/ajuda.svg" alt=""></button>
+      <button class="ib" aria-label="Perfil"><img src="topbar/perfil.svg" alt=""></button>
+      <button class="ib" aria-label="Sair"><img src="topbar/sair.svg" alt=""></button>
+    </header>
+    <main>
+      <img src="../brand/logo-doctor-explorer.svg" alt="Logo Doctor Explorer" style="width:260px;display:block">
+      <h2>Barra lateral</h2>
+      <div class="grid" id="g1"></div>
+      <h2>Topbar</h2>
+      <div class="grid" id="g2"></div>
+    </main>
+  </div>
+</div>
+<script>
+  const nav=["inicio","casos-clinicos","grupos","mensagens","chamadas","prontuario","prescricao","exames","instituicoes","administracao","privacidade","configuracoes"];
+  const topIcons=["menu","buscar","nova-mensagem","notificacoes","e2ee","selo-verificado","selo-pendente","selo-rejeitado","modo-plantao","ajuda","perfil","sair"];
+  const fill=(id,dir,list)=>document.getElementById(id).innerHTML=list.map(n=>`<div class="cell"><img src="${dir}/${n}.svg" alt="">${n}</div>`).join("");
+  fill("g1","nav",nav); fill("g2","topbar",topIcons);
+</script>
+</body>
+</html>

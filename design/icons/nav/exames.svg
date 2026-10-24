@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+  <!-- Exames · tubo com lupa -->
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4C97F5"/><stop offset="1" stop-color="#0F5BD6"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".55"/><stop offset=".55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE6F3"/>
+    </linearGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#0B2A5B" flood-opacity=".28"/>
+    </filter>
+    <clipPath id="c"><path d="M20 4h14v24a7 7 0 0 1-14 0z"/></clipPath>
+  </defs>
+  <g filter="url(#s)">
+    <path d="M20 4h14v24a7 7 0 0 1-14 0z" fill="url(#b)" stroke="#0B49B4" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+  <rect clip-path="url(#c)" x="0" y="0" width="64" height="64" fill="url(#g)"/>
+  <path d="M20 10h14" fill="url(#w)"/>
+  <path d="M20 4h14v4H20z" fill="url(#w)"/>
+  <path d="M43 32a11 11 0 1 1 0 22a11 11 0 1 1 0-22zm0 6a5 5 0 1 0 0 10a5 5 0 1 0 0-10zM50 51l8 8" fill="url(#b)" stroke="#0B49B4" stroke-width="1.5"/>
+  <path d="M51 52l7 7" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
