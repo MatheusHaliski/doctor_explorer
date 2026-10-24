@@ -59,7 +59,8 @@ jobs:
 
   design:
     name: Contraste + protótipo
-    runs-on: ubuntu-latest
+    # ubuntu-latest já é 26.04 e o Playwright ainda não instala o Chromium nele
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -102,7 +103,12 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+      - name: Build Java para o CodeQL
+        if: matrix.language == 'java-kotlin'
+        working-directory: apps/core-api
+        run: mvn -B -ntp -DskipTests package
       - uses: github/codeql-action/autobuild@v3
+        if: matrix.language != 'java-kotlin'
       - uses: github/codeql-action/analyze@v3
 
   gitleaks:
@@ -133,21 +139,12 @@ jobs:
       - name: Imagem com Jib (sem Dockerfile)
         working-directory: apps/core-api
         run: mvn -B -ntp -DskipTests jib:dockerBuild -Djib.to.image=core-api:ci
-      - uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: core-api:ci
-          format: sarif
-          output: trivy-image.sarif
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-      - uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: sarif
-          output: trivy-fs.sarif
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
+      - name: Instalar Trivy (script oficial)
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+      - name: Trivy na imagem
+        run: trivy image --format sarif --output trivy-image.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 core-api:ci
+      - name: Trivy no repositório
+        run: trivy fs --format sarif --output trivy-fs.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 .
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-image.sarif

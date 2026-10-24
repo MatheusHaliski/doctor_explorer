@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** RF01 · /api/v1/auth: CSRF, cadastro, login em etapas, reativação, logout e sessão. */
+/** RF01 · /api/v1/auth: CSRF, cadastro, login em etapas (senha → 2FA → reativação), logout e sessão. */
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -40,6 +40,8 @@ public class AuthController {
             @NotBlank(message = "Versão da Política ausente.") String privacyVersion) {}
 
     public record LoginRequest(String email, String password) {}
+
+    public record CodeRequest(String code) {}
 
     public record UserView(UUID id, String displayName, String email, String status) {
         static UserView of(UserAccount a) {
@@ -75,8 +77,16 @@ public class AuthController {
 
     @PostMapping("/login")
     Map<String, Object> login(@RequestBody LoginRequest req, HttpServletRequest request, HttpServletResponse response) {
-        // 2FA entra no passo 3; até lá, mfaEnabled = false.
-        LoginService.Result r = login.passwordStep(req.email(), req.password(), ctx.ipHash(request), ctx.userAgent(request), false);
+        return proceed(login.passwordStep(req.email(), req.password(), ctx.ipHash(request), ctx.userAgent(request)), request, response);
+    }
+
+    @PostMapping("/login/2fa")
+    Map<String, Object> loginMfa(@RequestBody CodeRequest req, HttpServletRequest request, HttpServletResponse response) {
+        UUID userId = sessions.requirePending(request, "2fa");
+        return proceed(login.mfaStep(userId, req.code(), ctx.ipHash(request), ctx.userAgent(request)), request, response);
+    }
+
+    private Map<String, Object> proceed(LoginService.Result r, HttpServletRequest request, HttpServletResponse response) {
         return switch (r.next()) {
             case MFA -> {
                 sessions.setPending(request, r.account().getId(), "2fa");

@@ -2,15 +2,19 @@ package com.doctorexplorer.core.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisIndexedHttpSession;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 
 /**
- * Cookie da sessão opaca: {@code __Host-de_session}, HttpOnly, Secure, SameSite=Lax, Path=/, sem Max-Age
- * (cookie de sessão do navegador). Explícito aqui para não depender do mapeamento de propriedades do Boot.
- * Em dev/it sem TLS o nome perde o prefixo __Host- e Secure fica desligado (perfis).
+ * Sessão opaca no Valkey com repositório <b>indexed</b> (lista e encerra sessões por usuário), ociosa por
+ * 60 min; a vida absoluta de 24 h fica no {@link AbsoluteSessionTimeoutFilter}.
+ * Cookie {@code __Host-de_session}: HttpOnly, Secure, SameSite=Lax, Path=/, sem Max-Age (cookie de
+ * sessão do navegador). Explícito aqui para não depender do mapeamento de propriedades do Boot. Em
+ * dev/it sem TLS o nome perde o prefixo __Host- e Secure fica desligado (perfis).
  */
 @Configuration
+@EnableRedisIndexedHttpSession(redisNamespace = "de:session", maxInactiveIntervalInSeconds = 60 * 60)
 public class SessionConfig {
 
     @Bean

@@ -1,12 +1,14 @@
 package com.doctorexplorer.core.identity.service;
 
 import com.doctorexplorer.core.identity.domain.AccountStatus;
+import com.doctorexplorer.core.identity.domain.Credential;
 import com.doctorexplorer.core.identity.domain.LoginAudit;
 import com.doctorexplorer.core.identity.domain.UserAccount;
 import com.doctorexplorer.core.identity.repo.Credentials;
 import com.doctorexplorer.core.identity.repo.LoginAudits;
 import com.doctorexplorer.core.identity.repo.UserAccounts;
 import com.doctorexplorer.core.web.ApiProblemException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,27 +35,31 @@ public class LoginService {
     private final LoginAudits audits;
     private final PasswordEncoder encoder;
     private final LoginRateLimiter limiter;
+    private final MfaService mfa;
+    private final PasswordPolicy passwordPolicy;
 
-    public LoginService(UserAccounts accounts, Credentials credentials, LoginAudits audits, PasswordEncoder encoder, LoginRateLimiter limiter) {
+    public LoginService(UserAccounts accounts, Credentials credentials, LoginAudits audits, PasswordEncoder encoder,
+            LoginRateLimiter limiter, MfaService mfa, PasswordPolicy passwordPolicy) {
         this.accounts = accounts;
         this.credentials = credentials;
         this.audits = audits;
         this.encoder = encoder;
         this.limiter = limiter;
+        this.mfa = mfa;
+        this.passwordPolicy = passwordPolicy;
     }
 
     @Transactional
-    public Result passwordStep(String email, String password, String ipHash, String userAgent, boolean mfaEnabled) {
+    public Result passwordStep(String email, String password, String ipHash, String userAgent) {
         String key = UserAccount.normalizeEmail(email == null ? "" : email);
         LoginRateLimiter.Decision d = limiter.check(key, ipHash);
         if (!d.allowed()) {
             audits.save(new LoginAudit(null, LoginAudit.Outcome.LOCKED, ipHash, userAgent));
-            throw new ApiProblemException(HttpStatus.TOO_MANY_REQUESTS, "muitas-tentativas", "Muitas tentativas",
-                    "Aguarde " + d.retryAfterSeconds() + " s antes de tentar de novo.", Map.of("retryAfter", d.retryAfterSeconds()));
+            throw tooMany(d.retryAfterSeconds());
         }
         Optional<UserAccount> found = accounts.findByEmailNormalized(key);
         // Sempre roda o Argon2 (mesmo sem conta) para não revelar existência pelo tempo de resposta.
-        String hash = found.flatMap(a -> credentials.findById(a.getId())).map(c -> c.getPasswordHash()).orElse(DUMMY_HASH);
+        String hash = found.flatMap(a -> credentials.findById(a.getId())).map(Credential::getPasswordHash).orElse(DUMMY_HASH);
         boolean ok = found.isPresent() && encoder.matches(password == null ? "" : password, hash);
         if (!ok || found.get().getStatus() == AccountStatus.ANONYMOUS_LGPD_DELETED || found.get().getStatus() == AccountStatus.SUSPENDED) {
             limiter.recordFailure(key, ipHash);
@@ -62,10 +68,27 @@ public class LoginService {
         }
         UserAccount account = found.get();
         limiter.recordSuccess(key);
-        if (mfaEnabled) {
+        if (mfa.isEnabled(account.getId())) {
             audits.save(new LoginAudit(account.getId(), LoginAudit.Outcome.MFA_REQUIRED, ipHash, userAgent));
             return new Result(Next.MFA, account);
         }
+        return finish(account, ipHash, userAgent);
+    }
+
+    /** Segunda etapa: código TOTP ou de recuperação. 5 falhas em 5 min encerram a etapa. */
+    @Transactional
+    public Result mfaStep(UUID userId, String code, String ipHash, String userAgent) {
+        UserAccount account = accounts.findById(userId).orElseThrow();
+        LoginRateLimiter.Decision d = limiter.checkMfa(userId.toString());
+        if (!d.allowed()) throw tooMany(d.retryAfterSeconds());
+        MfaService.Verification v = mfa.verify(userId, code);
+        if (v == MfaService.Verification.INVALID) {
+            limiter.recordMfaFailure(userId.toString());
+            audits.save(new LoginAudit(userId, LoginAudit.Outcome.MFA_FAILED, ipHash, userAgent));
+            throw new ApiProblemException(HttpStatus.UNAUTHORIZED, "codigo-2fa", "Código incorreto",
+                    "Confira o código do aplicativo autenticador ou use um código de recuperação.");
+        }
+        limiter.clearMfa(userId.toString());
         return finish(account, ipHash, userAgent);
     }
 
@@ -75,6 +98,29 @@ public class LoginService {
         audits.save(new LoginAudit(account.getId(), LoginAudit.Outcome.SUCCESS, ipHash, userAgent));
         if (account.getStatus() == AccountStatus.PENDING_DELETION) return new Result(Next.REACTIVATE, account);
         return new Result(Next.AUTHENTICATED, account);
+    }
+
+    /** Modo sudo: senha e, se o 2FA estiver ativo, código. Não conta no limite de login. */
+    @Transactional(readOnly = true)
+    public boolean verifyForSudo(UUID userId, String password, String code) {
+        Credential c = credentials.findById(userId).orElse(null);
+        if (c == null || !encoder.matches(password == null ? "" : password, c.getPasswordHash())) return false;
+        if (!mfa.isEnabled(userId)) return true;
+        return mfa.verify(userId, code) != MfaService.Verification.INVALID;
+    }
+
+    @Transactional
+    public List<String> changePassword(UUID userId, String currentPassword, String newPassword) {
+        UserAccount account = accounts.findById(userId).orElseThrow();
+        Credential c = credentials.findById(userId).orElseThrow();
+        if (!encoder.matches(currentPassword == null ? "" : currentPassword, c.getPasswordHash())) {
+            return List.of("A senha atual não confere.");
+        }
+        List<String> problems = passwordPolicy.validate(newPassword, account.getEmail(), account.getDisplayName());
+        if (!problems.isEmpty()) return problems;
+        c.change(encoder.encode(newPassword));
+        credentials.save(c);
+        return List.of();
     }
 
     @Transactional
@@ -87,5 +133,10 @@ public class LoginService {
     @Transactional
     public void logout(UUID userId, String ipHash, String userAgent) {
         audits.save(new LoginAudit(userId, LoginAudit.Outcome.LOGOUT, ipHash, userAgent));
+    }
+
+    private static ApiProblemException tooMany(long retryAfter) {
+        return new ApiProblemException(HttpStatus.TOO_MANY_REQUESTS, "muitas-tentativas", "Muitas tentativas",
+                "Aguarde " + retryAfter + " s antes de tentar de novo.", Map.of("retryAfter", retryAfter));
     }
 }

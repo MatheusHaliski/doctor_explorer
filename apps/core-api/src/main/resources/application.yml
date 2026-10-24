@@ -18,11 +18,7 @@ spring:
     redis:
       host: ${DE_VALKEY_HOST:localhost}
       port: ${DE_VALKEY_PORT:6379}
-  session:
-    timeout: 60m
-    redis:
-      namespace: de:session
-      repository-type: indexed
+  # Sessão: SessionConfig (@EnableRedisIndexedHttpSession, 60 min, namespace de:session)
   mvc:
     problemdetails:
       enabled: true

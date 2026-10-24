@@ -239,10 +239,10 @@ flowchart TD
 | Segredos | `AppSecretProperties` (`DE_APP_SECRET` obrigatório fora de dev/it, HKDF por finalidade), `AesGcm`, `UserKeyService` (DEK por usuário) | ✅ |
 | Erros | `ApiExceptionHandler` (Problem Details pt-BR, `422` com `errors[]`, `429` com `Retry-After`) | ✅ |
 | Serviço | `RegistrationService` (todos os erros juntos, código 30 min / 5 tentativas / reenvio 1 min), `LoginService` (mensagem neutra, Argon2 sempre executado), `PasswordPolicy` (12–128, lista comum, sem e-mail/nome), `LoginRateLimiter` (Valkey, conta e IP) | ✅ |
-| Serviço | `MfaService` (TOTP, códigos de recuperação, sudo) | ⏳ passo 3 |
-| API | `AuthController` (`/csrf`, `/register`, `/login`, `/reactivate`, `/logout`, `/session`), `MeController` (`/me`, `/me/verify-email`, `/me/verify-email/resend`) | ✅ |
-| API | `/login/2fa`, `/me/password`, `/me/sessions`, `/me/mfa/**` | ⏳ passo 3 |
+| Serviço | `Totp` (RFC 6238, janela ±1, vetores do RFC no teste), `MfaService` (segredo cifrado com subchave "mfa", 10 códigos de recuperação de uso único, 5 falhas/5 min), modo sudo de 10 min em `SessionSupport` | ✅ |
+| API | `AuthController` (`/csrf`, `/register`, `/login`, `/login/2fa`, `/reactivate`, `/logout`, `/session`), `MeController` (`/me`, `/me/verify-email`, `/me/verify-email/resend`) | ✅ |
+| API | `MeSecurityController`: `POST /me/sudo`, `POST /me/password` (sudo, derruba as outras sessões), `GET /me/mfa`, `POST /me/mfa/totp/setup|confirm`, `POST /me/mfa/recovery-codes`, `DELETE /me/mfa`, `GET/DELETE /me/sessions[/{handle}]` (apelido por hash, nunca o id real) | ✅ |
 | Web | telas Login, Cadastro, Segurança (protótipo em `design/prototype`: Sessões e segurança ✅) | 🟡 |
 | Testes | `SchemaConsistencyTest`, `AccountStatusTest`, `EmailVerificationTest`, `PasswordPolicyTest`, `AppSecretPropertiesTest`, `SecurityHeadersTest` | ✅ |
 | Testes | `AuthFlowIT` com `support/ApiClient` (CSRF + sessão real no Valkey): cadastro → código → ativação → logout → login, 422 agrupado, CSRF, limite por conta, reenvio | ✅ |
-| Testes | `MfaIT` | ⏳ passo 3 |
+| Testes | `TotpTest`, `MfaIT` (sudo obrigatório, ativar TOTP, login em etapas, código de recuperação de uso único, bloqueio após 5 erros, troca de senha derruba outras sessões, listagem sem ids reais) | ✅ |

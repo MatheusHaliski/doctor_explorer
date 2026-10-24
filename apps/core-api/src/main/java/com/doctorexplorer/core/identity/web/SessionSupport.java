@@ -1,13 +1,17 @@
 package com.doctorexplorer.core.identity.web;
 
+import com.doctorexplorer.core.common.Hashing;
 import com.doctorexplorer.core.config.AbsoluteSessionTimeoutFilter;
 import com.doctorexplorer.core.identity.domain.UserAccount;
+import com.doctorexplorer.core.identity.service.RequestContext;
 import com.doctorexplorer.core.web.ApiProblemException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -19,19 +23,33 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
 import org.springframework.stereotype.Component;
 
 /**
- * Abre, lê e encerra a sessão opaca. Etapas intermediárias do login (2FA, reativação) ficam em atributos
- * próprios; só {@link #authenticate} grava o SecurityContext.
+ * Abre, lê, lista e encerra a sessão opaca. Etapas intermediárias do login (2FA, reativação) ficam em
+ * atributos próprios; só {@link #authenticate} grava o SecurityContext. O modo sudo vale 10 min.
  */
 @Component
 public class SessionSupport {
 
     public static final String PENDING_USER = "de.login.pendingUserId";
     public static final String PENDING_STEP = "de.login.pendingStep";
+    public static final String SUDO_UNTIL = "de.sudo.until";
+    public static final String USER_AGENT = "de.session.userAgent";
+    public static final String IP_HASH = "de.session.ipHash";
+    public static final Duration SUDO_TTL = Duration.ofMinutes(10);
+
+    public record SessionView(String handle, Instant createdAt, Instant lastAccessedAt, String userAgent, boolean current) {}
 
     private final SecurityContextRepository contextRepository = new HttpSessionSecurityContextRepository();
+    private final FindByIndexNameSessionRepository<?> sessionRepository;
+    private final RequestContext ctx;
+
+    public SessionSupport(FindByIndexNameSessionRepository<?> sessionRepository, RequestContext ctx) {
+        this.sessionRepository = sessionRepository;
+        this.ctx = ctx;
+    }
 
     public void authenticate(HttpServletRequest request, HttpServletResponse response, UserAccount account) {
         HttpSession session = request.getSession(true);
@@ -39,12 +57,14 @@ public class SessionSupport {
         session.removeAttribute(PENDING_USER);
         session.removeAttribute(PENDING_STEP);
         session.setAttribute(AbsoluteSessionTimeoutFilter.STARTED_AT, Instant.now().toEpochMilli());
+        session.setAttribute(USER_AGENT, ctx.userAgent(request));
+        session.setAttribute(IP_HASH, ctx.ipHash(request));
         SessionPrincipal principal = new SessionPrincipal(account.getId(), account.getDisplayName(), account.getStatus());
         Authentication auth = UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of(new SimpleGrantedAuthority("ROLE_PROFESSIONAL")));
-        SecurityContext ctx = SecurityContextHolder.createEmptyContext();
-        ctx.setAuthentication(auth);
-        SecurityContextHolder.setContext(ctx);
-        contextRepository.saveContext(ctx, request, response);
+        SecurityContext sc = SecurityContextHolder.createEmptyContext();
+        sc.setAuthentication(auth);
+        SecurityContextHolder.setContext(sc);
+        contextRepository.saveContext(sc, request, response);
         // índice por usuário para listar/encerrar sessões (repositório indexed do Spring Session)
         session.setAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, account.getId().toString());
     }
@@ -64,6 +84,14 @@ public class SessionSupport {
         return UUID.fromString(id);
     }
 
+    public void clearPending(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.removeAttribute(PENDING_USER);
+            session.removeAttribute(PENDING_STEP);
+        }
+    }
+
     public Optional<SessionPrincipal> current() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.getPrincipal() instanceof SessionPrincipal p ? Optional.of(p) : Optional.empty();
@@ -73,9 +101,66 @@ public class SessionSupport {
         return current().orElseThrow(() -> new ApiProblemException(HttpStatus.UNAUTHORIZED, "sem-sessao", "Sessão necessária", "Entre para continuar."));
     }
 
+    public void grantSudo(HttpServletRequest request) {
+        request.getSession(true).setAttribute(SUDO_UNTIL, Instant.now().plus(SUDO_TTL).toEpochMilli());
+    }
+
+    /** Ações sensíveis (senha, 2FA, exclusão, assinatura) exigem sudo recente: senha + código. */
+    public void requireSudo(HttpServletRequest request) {
+        require();
+        HttpSession session = request.getSession(false);
+        Object until = session == null ? null : session.getAttribute(SUDO_UNTIL);
+        if (!(until instanceof Long u) || Instant.ofEpochMilli(u).isBefore(Instant.now())) {
+            throw new ApiProblemException(HttpStatus.FORBIDDEN, "sudo-necessario", "Confirme sua identidade",
+                    "Para esta ação, confirme sua senha" + " (e o código do autenticador, se o 2FA estiver ativo) em POST /api/v1/me/sudo.");
+        }
+    }
+
     public void invalidate(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session != null) session.invalidate();
         SecurityContextHolder.clearContext();
+    }
+
+    public List<SessionView> list(HttpServletRequest request, UUID userId) {
+        String currentId = request.getSession(false) == null ? null : request.getSession(false).getId();
+        return sessions(userId).entrySet().stream()
+                .map(e -> new SessionView(handle(e.getKey()), e.getValue().getCreationTime(), e.getValue().getLastAccessedTime(),
+                        e.getValue().getAttribute(USER_AGENT), e.getKey().equals(currentId)))
+                .sorted((a, b) -> b.lastAccessedAt().compareTo(a.lastAccessedAt()))
+                .toList();
+    }
+
+    public boolean end(UUID userId, String handle) {
+        for (String id : sessions(userId).keySet()) {
+            if (handle(id).equals(handle)) {
+                sessionRepository.deleteById(id);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Encerra todas as outras sessões do usuário (troca de senha, "sair de todos os aparelhos"). */
+    public int endOthers(HttpServletRequest request, UUID userId) {
+        String currentId = request.getSession(false) == null ? null : request.getSession(false).getId();
+        int n = 0;
+        for (String id : sessions(userId).keySet()) {
+            if (!id.equals(currentId)) {
+                sessionRepository.deleteById(id);
+                n++;
+            }
+        }
+        return n;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, ? extends Session> sessions(UUID userId) {
+        return (Map<String, ? extends Session>) sessionRepository.findByPrincipalName(userId.toString());
+    }
+
+    /** O id real da sessão nunca sai do servidor: o cliente vê só um apelido derivado por hash. */
+    private static String handle(String sessionId) {
+        return Hashing.sha256Hex("session-handle:" + sessionId).substring(0, 16);
     }
 }

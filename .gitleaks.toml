@@ -8,9 +8,11 @@ paths = [
   '''infra/garage/garage\.toml''',
   '''infra/garage/init\.sh''',
   '''compose\.yaml''',
+  '''apps/core-api/src/main/resources/application-(dev|it)\.yml''',
 ]
 regexes = [
   '''ZGV2LW9ubHktc2VjcmV0LWRldi1vbmx5LXNlY3JldC0xMjM0NTY=''',
+  '''aXQtb25seS1zZWNyZXQtaXQtb25seS1zZWNyZXQtMTIzNDU2Nzg=''',
   '''dev-admin-token''',
   '''GKdedevdedevdedevdedevdede''',
 ]

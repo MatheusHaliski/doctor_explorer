@@ -187,6 +187,7 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Config | `SecurityConfig` | ⏳ |
-| Domínio | `AccessService`, políticas | ⏳ |
+| Config | `SecurityConfig`: rota × papel global (`/admin/**` → MODERATOR/ADMIN, `/privacy/dpo/**` → DPO, rotas públicas de auth/diretório, resto autenticado), 401 sem sessão, 403 sem papel | 🟡 (papéis globais ✅; papéis institucionais e selo ⏳) |
+| Domínio | `AccessService`, `SealPolicy`, `InstitutionTreePolicy`, `MfaRequiredPolicy` | ⏳ |
+| Testes | `SecurityHeadersTest` (401 sem sessão) | ✅ |
 | Testes | `AccessMatrixIT` (lê a tabela deste doc), `InstitutionTreePolicyTest` | ⏳ |
