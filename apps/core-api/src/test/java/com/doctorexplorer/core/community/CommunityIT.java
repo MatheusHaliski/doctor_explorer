@@ -104,27 +104,30 @@ class CommunityIT {
         assertThat(bruno.get("/api/v1/posts/" + postId).getContentAsString()).contains("\"state\":\"EM_DISCUSSAO\"").contains("\"opinions\":1").contains("\"canRecordInEhr\":false");
         assertThat(ana.get("/api/v1/posts/" + postId).getContentAsString()).contains("\"canRecordInEhr\":true");
 
-        // segmentação por eixos
-        assertThat(ana.get("/api/v1/feed").getContentAsString()).contains("\"count\":2");
-        assertThat(ana.get("/api/v1/feed?kind=CASE").getContentAsString()).contains("\"count\":1").contains("Choque séptico");
-        assertThat(ana.get("/api/v1/feed?origin=rede").getContentAsString()).contains("\"count\":1").contains("Caso da semana");
-        assertThat(ana.get("/api/v1/feed?state=EM_DISCUSSAO").getContentAsString()).contains("\"count\":1").contains("Choque séptico");
-        assertThat(ana.get("/api/v1/feed?unanswered=true").getContentAsString()).contains("\"count\":1").contains("Caso da semana");
-        assertThat(ana.get("/api/v1/feed?specialty=DERM").getContentAsString()).contains("\"count\":0");
+        // segmentação por eixos (outros testes podem ter deixado publicações de rede no mesmo banco:
+        // as asserções olham só os títulos deste teste)
+        String caso = "Choque séptico refratário", semana = "Caso da semana: desmame";
+        assertThat(ana.get("/api/v1/feed").getContentAsString()).contains(caso).contains(semana);
+        assertThat(ana.get("/api/v1/feed?kind=CASE").getContentAsString()).contains(caso).doesNotContain(semana);
+        assertThat(ana.get("/api/v1/feed?origin=rede").getContentAsString()).contains(semana).doesNotContain(caso);
+        assertThat(ana.get("/api/v1/feed?origin=grupo").getContentAsString()).contains(caso).doesNotContain(semana);
+        assertThat(ana.get("/api/v1/feed?state=EM_DISCUSSAO").getContentAsString()).contains(caso).doesNotContain(semana);
+        assertThat(ana.get("/api/v1/feed?unanswered=true").getContentAsString()).contains(semana).doesNotContain(caso);
+        assertThat(ana.get("/api/v1/feed?specialty=DERM").getContentAsString()).doesNotContain(caso).doesNotContain(semana);
 
         // quem não é do grupo vê só a rede
         ApiClient carla = new ApiClient(mvc);
         carla.register("derm+" + System.nanoTime() + "@example.org", PASSWORD);
         carla.activateEmail(mailer);
         carla.post("/api/v1/credentials", "{\"crmNumber\":\"12" + String.format("%04d", System.nanoTime() % 10_000) + "\",\"crmUf\":\"RS\",\"specialties\":[]}");
-        assertThat(carla.get("/api/v1/feed").getContentAsString()).contains("\"count\":1").doesNotContain("Choque séptico");
+        assertThat(carla.get("/api/v1/feed").getContentAsString()).contains(semana).doesNotContain(caso);
         assertThat(carla.get("/api/v1/posts/" + postId).getStatus()).isEqualTo(404);
 
         // resolver: só o autor; depois disso parecer novo é recusado
         assertThat(bruno.post("/api/v1/posts/" + postId + "/resolve", null).getStatus()).isEqualTo(404);
         assertThat(ana.post("/api/v1/posts/" + postId + "/resolve", null).getContentAsString()).contains("\"state\":\"RESOLVIDO\"");
         assertThat(bruno.post("/api/v1/posts/" + postId + "/comments", "{\"body\":\"Mais um parecer\",\"opinion\":true}").getStatus()).isEqualTo(409);
-        assertThat(ana.get("/api/v1/feed?state=RESOLVIDO").getContentAsString()).contains("\"count\":1");
+        assertThat(ana.get("/api/v1/feed?state=RESOLVIDO").getContentAsString()).contains(caso).doesNotContain(semana);
     }
 
     @Test
