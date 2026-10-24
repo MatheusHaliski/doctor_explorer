@@ -232,9 +232,13 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Migração | `V1__identity.sql` | ⏳ |
-| Domínio | `UserAccount`, `AccountStatus` | ⏳ |
-| Serviço | `AuthService`, `MfaService` | ⏳ |
+| Migração | `V1__identidade.sql` (contas, credencial, 2FA, verificação, termos, consentimentos, preferências, `user_key`, `login_audit`) + `schema.sql` | ✅ |
+| Domínio | `AccountStatus`, `SealStatus` (máquinas de estado com `InvalidTransitionException`) | ✅ |
+| Domínio | `UserAccount` (entidade JPA) | ⏳ |
+| Segurança | `SecurityConfig` (CSRF SPA, CSP, Referrer-Policy, troca de id de sessão, rotas públicas) | ✅ |
+| Erros | `ApiExceptionHandler` (Problem Details pt-BR, `422` com `errors[]`) | ✅ |
+| Serviço | `AuthService`, `MfaService`, `PasswordPolicy`, `LoginRateLimiter` | ⏳ |
 | API | `AuthController`, `MeController` | ⏳ |
-| Web | telas Login, Cadastro, Segurança | ⏳ |
-| Testes | `AuthFlowIT`, `MfaIT`, `RateLimitIT` | ⏳ |
+| Web | telas Login, Cadastro, Segurança (protótipo em `design/prototype`: Sessões e segurança ✅) | 🟡 |
+| Testes | `SchemaConsistencyTest`, `AccountStatusTest`, `SecurityHeadersTest` | ✅ |
+| Testes | `AuthFlowIT`, `MfaIT`, `RateLimitIT` (Testcontainers) | ⏳ |

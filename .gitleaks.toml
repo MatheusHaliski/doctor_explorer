@@ -1,0 +1,16 @@
+# Allowlist mínima: só valores de desenvolvimento local, explicitamente marcados como tal.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Segredos de dev/it do Compose e do perfil dev; nunca usados fora de localhost"
+paths = [
+  '''infra/garage/garage\.toml''',
+  '''infra/garage/init\.sh''',
+  '''compose\.yaml''',
+]
+regexes = [
+  '''ZGV2LW9ubHktc2VjcmV0LWRldi1vbmx5LXNlY3JldC0xMjM0NTY=''',
+  '''dev-admin-token''',
+  '''GKdedevdedevdedevdedevdede''',
+]

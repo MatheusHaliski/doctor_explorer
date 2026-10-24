@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: core-api · JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [21, 25]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: mvn verify (unitários + *IT com Testcontainers)
+        working-directory: apps/core-api
+        run: mvn -B -ntp verify
+      - name: SBOM (CycloneDX)
+        if: matrix.java == 21
+        working-directory: apps/core-api
+        run: mvn -B -ntp -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+      - uses: actions/upload-artifact@v4
+        if: matrix.java == 21
+        with:
+          name: sbom-core-api
+          path: apps/core-api/target/bom.json
+
+  docs-por-rf:
+    name: Docs por RF
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g @mermaid-js/mermaid-cli@11
+      - name: Doc atualizado quando o código do RF muda + Mermaid renderiza
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git cat-file -e "$BASE" 2>/dev/null || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then BASE=$(git rev-list --max-parents=0 HEAD | tail -1); fi
+          python3 scripts/docs_por_rf.py --base "$BASE" --head HEAD
+
+  design:
+    name: Contraste + protótipo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Contraste WCAG dos tokens
+        run: python3 scripts/wcag_contrast.py
+      - name: Ícones regenerados batem com o repositório
+        run: python3 design/icons/build_icons.py && git diff --exit-code -- design/icons
+      - name: Playwright
+        run: npm install playwright@1.56.1 && npx playwright install --with-deps chromium
+      - name: Render do protótipo + testes de fumaça
+        run: PLAYWRIGHT_ROOT=$PWD/node_modules node design/prototype/render.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prototype-shots
+          path: design/prototype/shots
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [java-kotlin, javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        if: matrix.language == 'java-kotlin'
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
+
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  trivy:
+    name: Trivy (imagem e repositório)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - name: Imagem com Jib (sem Dockerfile)
+        working-directory: apps/core-api
+        run: mvn -B -ntp -DskipTests jib:dockerBuild -Djib.to.image=core-api:ci
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: core-api:ci
+          format: sarif
+          output: trivy-image.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs

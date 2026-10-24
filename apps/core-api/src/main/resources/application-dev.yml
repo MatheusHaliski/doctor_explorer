@@ -1,0 +1,14 @@
+server:
+  servlet:
+    session:
+      cookie:
+        # Em dev sem TLS o navegador recusa cookie Secure com prefixo __Host-; use o perfil só em localhost.
+        secure: false
+        name: de_session
+
+doctor-explorer:
+  app-secret: ${DE_APP_SECRET:ZGV2LW9ubHktc2VjcmV0LWRldi1vbmx5LXNlY3JldC0xMjM0NTY=}
+
+logging:
+  level:
+    org.springframework.security: INFO

@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: core-api
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DE_DB_URL:jdbc:postgresql://localhost:5432/doctor_explorer}
+    username: ${DE_DB_USER:de}
+    password: ${DE_DB_PASSWORD:de}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+  session:
+    timeout: 60m
+  web:
+    locale: pt_BR
+    locale-resolver: fixed
+
+server:
+  servlet:
+    session:
+      cookie:
+        name: __Host-de_session
+        http-only: true
+        secure: true
+        same-site: lax
+        path: /
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+doctor-explorer:
+  # Base64 de 32+ bytes; obrigatório fora dos perfis dev/it (validado em AppSecretProperties no passo 2).
+  app-secret: ${DE_APP_SECRET:}
+  session:
+    absolute-timeout: 24h
+  terms:
+    version: "2026-10-24"
+    privacy-version: "2026-10-24"
+  jobs:
+    erasure-cron: "0 15 3 * * *"

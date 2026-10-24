@@ -1,0 +1,64 @@
+# Ambiente local do Doctor Explorer. Sobe só o que a core-api precisa; `--profile full` acrescenta a Cassandra.
+#   docker compose up -d
+#   docker compose --profile full up -d
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: doctor_explorer
+      POSTGRES_USER: de
+      POSTGRES_PASSWORD: de
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U de -d doctor_explorer"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:9
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  garage:
+    image: dxflrs/garage:v2.4.0
+    volumes:
+      - ./infra/garage/garage.toml:/etc/garage.toml:ro
+      - garagemeta:/var/lib/garage/meta
+      - garagedata:/var/lib/garage/data
+    ports: ["3900:3900", "3903:3903"]
+
+  garage-init:
+    # Cria o layout, a chave e o bucket `de-media` pela Admin API v2. Idempotente.
+    image: curlimages/curl:8.11.1
+    depends_on: [garage]
+    volumes: [./infra/garage/init.sh:/init.sh:ro]
+    entrypoint: ["sh", "/init.sh"]
+    environment:
+      GARAGE_ADMIN: http://garage:3903
+      GARAGE_ADMIN_TOKEN: dev-admin-token
+
+  cassandra:
+    image: cassandra:5.0
+    profiles: [full]
+    environment:
+      CASSANDRA_CLUSTER_NAME: de-local
+    ports: ["9042:9042"]
+    volumes: [cassdata:/var/lib/cassandra]
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+volumes:
+  pgdata: {}
+  garagemeta: {}
+  garagedata: {}
+  cassdata: {}

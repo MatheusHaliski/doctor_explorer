@@ -37,6 +37,26 @@ Estado atual: **especificação**. Nenhum código de aplicação ainda; a ordem 
   `design/prototype/shots/`, geradas com testes de fumaça por
   `PLAYWRIGHT_ROOT=$(npm root -g) node design/prototype/render.mjs`.
 
+## Backend (`apps/core-api`)
+
+```bash
+docker compose up -d                                   # PostGIS 17, Valkey 9, Garage (+ `--profile full` para Cassandra)
+cd apps/core-api
+mvn test                                               # unitários, sem Docker
+mvn verify                                             # + *IT com Testcontainers
+mvn spring-boot:run -Dspring-boot.run.profiles=dev     # http://localhost:8080/api/v1/ping
+python3 ../../scripts/gen_schema.py                    # regenera schema.sql depois de uma migração nova
+```
+
+Fora dos perfis `dev`/`it`, `DE_APP_SECRET` (Base64, 32+ bytes) é obrigatório. A `clinical-api` (PEP,
+prescrição, FHIR) entra na fase 9 com banco e chaves separados.
+
+## CI
+
+`.github/workflows/ci.yml`: `mvn verify` em JDK 21 e 25 · **Docs por RF** (`scripts/docs_por_rf.py`:
+doc do RF atualizado no mesmo commit em que seu código muda + todo Mermaid renderiza) · contraste e
+protótipo · CodeQL · Gitleaks · Trivy · SBOM CycloneDX · Dependabot.
+
 ## Stack (resumo)
 
 Java 21 · Spring Boot 4.1 · Spring Security 7 · Spring Session + Valkey 9 · PostgreSQL 17 + PostGIS ·
