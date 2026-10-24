@@ -25,6 +25,24 @@ paths:
 7. Feed ordenado por recência, com filtro por especialidade e "sem resposta". Sem algoritmo de
    engajamento no MVP.
 
+## Segmentação do feed por classificações
+
+Toda publicação tem **exatamente um valor em cada eixo**. Os eixos são filtros independentes e combináveis
+na interface (abas para o tipo, chips para os demais, interruptor "Só sem resposta"); a escolha fica salva
+só no aparelho do usuário (conveniência, não dado pessoal).
+
+| Eixo | Valores | Quem define |
+|---|---|---|
+| **Tipo** | `caso` · `parecer` · `protocolo` · `comunicado` · `educacao` | autor, ao publicar |
+| **Especialidade** | código da especialidade (RQE) | grupo onde foi publicado; o usuário vê as suas marcadas |
+| **Origem** | `rede` (rede verificada) · `instituicao` (minha instituição) · `grupo` (meus grupos) | derivado do vínculo do leitor |
+| **Estado** | `sem_resposta` · `em_discussao` · `resolvido` | automático (0 pareceres → sem resposta) e autor (resolvido) |
+
+Regras: `protocolo` e `comunicado` só podem ser publicados por conta institucional (RF11) e nascem
+`resolvido`; `educacao` aceita quiz com gabarito; o rascunho de autor com selo `PENDING` fica retido e só
+o próprio autor vê. Ordem fixa por recência, **sem** ranking por engajamento no MVP. Protótipo:
+`design/prototype/index.html#/`.
+
 ## Base legal
 
 CFM: sigilo profissional (CEM arts. 73 a 79) · LGPD Art. 12 (dado anonimizado deixa de ser dado pessoal,

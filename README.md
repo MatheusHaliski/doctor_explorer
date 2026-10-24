@@ -29,6 +29,13 @@ Estado atual: **especificação**. Nenhum código de aplicação ainda; a ordem 
 - Logo oficial: `design/brand/logo-doctor-explorer.svg`; marca compacta: `design/brand/logo-mark.svg`.
 - Ícones da barra lateral e da topbar, em plástico azul derivado do logo: `design/icons/` (gerados por
   `design/icons/build_icons.py`; prévia em `design/icons/preview.png`).
+- Tokens e tabela de contraste: `design/prototype/tokens.css`, [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md),
+  verificados por `python3 scripts/wcag_contrast.py`.
+- **Protótipo navegável** (HTML/CSS/JS puro): `design/prototype/index.html`. Feed segmentado por tipo,
+  especialidade, origem e estado; cards de atores; perfil; telas de LGPD (consentimentos, seus dados,
+  sessões, exclusão com carência, Encarregado). Capturas em claro/escuro e desktop/mobile em
+  `design/prototype/shots/`, geradas com testes de fumaça por
+  `PLAYWRIGHT_ROOT=$(npm root -g) node design/prototype/render.mjs`.
 
 ## Stack (resumo)
 

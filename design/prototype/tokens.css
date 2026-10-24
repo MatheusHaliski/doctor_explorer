@@ -1,0 +1,93 @@
+/* Doctor Explorer · tokens de design (fonte: packages/tokens via DTCG → Style Dictionary; aqui a cópia do protótipo)
+   Três níveis: primitivos → semânticos → componentes. Tema claro é o padrão; escuro por preferência do sistema ou data-theme. */
+:root {
+  /* primitivos */
+  --color-brand-300: #6FA6FF;
+  --color-brand-400: #3D8BF2;
+  --color-brand-500: #1565E0;
+  --color-brand-600: #0F4FBF;
+  --color-brand-700: #0B3F99;
+  --color-green-500: #2EAA4A;
+  --color-green-700: #187033;
+  --color-red-500: #E53935;
+  --color-red-700: #B3261E;
+  --color-amber-700: #8A5A00;
+  --color-neutral-0: #FFFFFF;
+  --color-neutral-50: #F6F4EF;
+  --color-neutral-100: #EEF1F6;
+  --color-neutral-200: #D9DEE7;
+  --color-neutral-500: #5B6677;
+  --color-neutral-700: #3B4557;
+  --color-neutral-900: #17202E;
+
+  /* semânticos */
+  --bg: var(--color-neutral-0);
+  --surface: var(--color-neutral-50);
+  --surface-2: var(--color-neutral-100);
+  --line: var(--color-neutral-200);
+  --line-soft: var(--color-neutral-100);
+  --text: var(--color-neutral-900);
+  --text-2: var(--color-neutral-700);
+  --text-3: var(--color-neutral-500);
+  --brand: var(--color-brand-500);
+  --brand-text: var(--color-brand-600);   /* versão da marca que passa 4,5:1 como texto */
+  --on-brand: var(--color-neutral-0);     /* texto sobre botão de marca */
+  --brand-soft: #E3EDFC;
+  --focus-ring: var(--color-brand-700);   /* ≥ 3:1 contra o fundo */
+  --success: var(--color-green-700);
+  --warning: var(--color-amber-700);
+  --danger: var(--color-red-700);
+  --on-danger: var(--color-neutral-0);    /* texto sobre botão destrutivo */
+  --info: var(--color-brand-600);
+  --success-soft: #E3F4E7;
+  --warning-soft: #FBF0DB;
+  --danger-soft: #FBE4E2;
+  /* selo profissional: cor + ícone + rótulo, nunca só cor */
+  --seal-verified: var(--color-green-700);
+  --seal-pending: var(--color-amber-700);
+  --seal-rejected: var(--color-red-700);
+
+  /* forma, espaço, tipografia, movimento */
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 20px; --radius-pill: 999px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+  --font-sans: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --text-xs: .75rem; --text-sm: .875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5rem;
+  --tap-min: 44px;
+  --dur-fast: 120ms; --dur-base: 200ms; --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --shadow-1: 0 1px 2px rgba(11, 42, 91, .08), 0 2px 8px rgba(11, 42, 91, .06);
+
+  /* componentes */
+  --card-bg: var(--bg);
+  --card-line: var(--line);
+  --nav-active-bg: var(--brand-soft);
+  --nav-active-text: var(--brand-text);
+  --chip-bg: var(--surface-2);
+  --chip-active-bg: var(--brand);
+  --chip-active-text: var(--on-brand);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1621; --surface: #171F2C; --surface-2: #1F2937; --line: #2A3443; --line-soft: #1F2937;
+    --text: #EEF2F7; --text-2: #C3CBD8; --text-3: #9AA5B5;
+    --brand: var(--color-brand-300); --brand-text: #8FB8FF; --on-brand: #0B1B36; --brand-soft: #1B2E4F;
+    --focus-ring: #9CC2FF;
+    --success: #6FD28A; --warning: #F3C56B; --danger: #FF8A80; --on-danger: #3D1A17; --info: #8FB8FF;
+    --success-soft: #16311F; --warning-soft: #3A2D0E; --danger-soft: #3D1A17;
+    --seal-verified: #6FD28A; --seal-pending: #F3C56B; --seal-rejected: #FF8A80;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1621; --surface: #171F2C; --surface-2: #1F2937; --line: #2A3443; --line-soft: #1F2937;
+  --text: #EEF2F7; --text-2: #C3CBD8; --text-3: #9AA5B5;
+  --brand: var(--color-brand-300); --brand-text: #8FB8FF; --on-brand: #0B1B36; --brand-soft: #1B2E4F;
+  --focus-ring: #9CC2FF;
+  --success: #6FD28A; --warning: #F3C56B; --danger: #FF8A80; --on-danger: #3D1A17; --info: #8FB8FF;
+  --success-soft: #16311F; --warning-soft: #3A2D0E; --danger-soft: #3D1A17;
+  --seal-verified: #6FD28A; --seal-pending: #F3C56B; --seal-rejected: #FF8A80;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; }
+}

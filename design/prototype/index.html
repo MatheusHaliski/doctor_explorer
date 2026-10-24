@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Doctor Explorer · protótipo</title>
+<link rel="icon" href="../brand/logo-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Pular para o conteúdo</a>
+<div class="app">
+  <aside class="sidebar" aria-label="Navegação principal">
+    <a class="brand" href="#/"><img src="../brand/logo-mark.svg" alt="">Doctor Explorer</a>
+    <nav class="nav">
+      <a href="#/" data-nav="inicio"><img src="../icons/nav/inicio.svg" alt="">Início</a>
+      <a href="#/casos" data-nav="casos"><img src="../icons/nav/casos-clinicos.svg" alt="">Casos clínicos</a>
+      <a href="#/grupos" data-nav="grupos"><img src="../icons/nav/grupos.svg" alt="">Grupos</a>
+      <a href="#/mensagens" data-nav="mensagens"><img src="../icons/nav/mensagens.svg" alt="">Mensagens</a>
+      <a href="#/chamadas" data-nav="chamadas"><img src="../icons/nav/chamadas.svg" alt="">Chamadas</a>
+      <div class="sep">Clínico</div>
+      <a href="#/prontuario" data-nav="prontuario"><img src="../icons/nav/prontuario.svg" alt="">Prontuário</a>
+      <a href="#/prescricoes" data-nav="prescricoes"><img src="../icons/nav/prescricao.svg" alt="">Prescrições</a>
+      <a href="#/exames" data-nav="exames"><img src="../icons/nav/exames.svg" alt="">Exames</a>
+      <div class="sep">Instituição</div>
+      <a href="#/instituicoes" data-nav="instituicoes"><img src="../icons/nav/instituicoes.svg" alt="">Instituições</a>
+      <a href="#/atores" data-nav="atores"><img src="../icons/nav/administracao.svg" alt="">Atores do sistema</a>
+      <div class="sep">Conta</div>
+      <a href="#/perfil" data-nav="perfil"><img src="../icons/topbar/perfil.svg" alt="">Perfil</a>
+      <a href="#/privacidade" data-nav="privacidade"><img src="../icons/nav/privacidade.svg" alt="">Privacidade</a>
+      <a href="#/configuracoes" data-nav="configuracoes"><img src="../icons/nav/configuracoes.svg" alt="">Configurações</a>
+    </nav>
+  </aside>
+  <div>
+    <header class="topbar">
+      <button class="ib only-mobile" id="btn-menu" type="button" aria-label="Abrir menu"><img src="../icons/topbar/menu.svg" alt=""></button>
+      <label class="search"><img src="../icons/topbar/buscar.svg" alt=""><span class="sr-only">Buscar</span><input id="q" type="search" placeholder="Buscar casos, colegas, instituições"><kbd>/</kbd></label>
+      <span class="grow"></span>
+      <span class="seal VERIFIED"><img src="../icons/topbar/selo-verificado.svg" alt="">CRM verificado</span>
+      <button class="ib" id="btn-plantao" type="button" aria-label="Modo plantão" aria-pressed="false"><img src="../icons/topbar/modo-plantao.svg" alt=""></button>
+      <a class="ib" href="#/mensagens" aria-label="Nova mensagem"><img src="../icons/topbar/nova-mensagem.svg" alt=""></a>
+      <button class="ib" type="button" aria-label="Notificações, 3 novas"><img src="../icons/topbar/notificacoes.svg" alt=""><span class="badge" aria-hidden="true">3</span></button>
+      <button class="ib" type="button" aria-label="Ajuda"><img src="../icons/topbar/ajuda.svg" alt=""></button>
+      <button class="ib" id="btn-theme" type="button" aria-label="Alternar tema escuro" aria-pressed="false"><img src="../icons/nav/configuracoes.svg" alt=""></button>
+      <a class="ib" href="#/perfil" aria-label="Perfil"><img src="../icons/topbar/perfil.svg" alt=""></a>
+      <button class="ib" type="button" aria-label="Sair"><img src="../icons/topbar/sair.svg" alt=""></button>
+    </header>
+    <main id="main" tabindex="-1"></main>
+  </div>
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
