@@ -6,6 +6,10 @@ cards: [US08, US09, US10]
 paths:
   - apps/core-api/src/main/java/**/community/**
   - apps/web/app/(app)/grupos/**
+  - apps/web/app/(app)/feed/**
+  - apps/web/app/(app)/casos/**
+  - apps/web/lib/feed-params.ts
+  - apps/web/components/PostCard.tsx
 ---
 
 # RF04 · Grupos fechados por especialidade e feed de casos clínicos
@@ -192,5 +196,5 @@ flowchart TD
 | Serviço | origem "minha instituição": audiência INSTITUTION, `publishInstitutional` (PROTOCOL/NOTICE por gestor com papel que publica; RF11) | ✅ |
 | Serviço | mídia anonimizada no post (RF05), notificações sem conteúdo (Cassandra) | ⏳ |
 | API | `GET /groups`, `POST /groups/{code}/join`, `POST /groups/{code}/members/{id}/approve`, `GET /feed?kind&specialty&origin&state&unanswered`, `POST /posts`, `GET /posts/{id}` (com `canRecordInEhr` só para o autor), `POST /posts/{id}/comments`, `POST /posts/{id}/resolve`, `DELETE /posts/{id}`, `POST /admin/posts/{id}/hide` | ✅ |
-| Web | Grupos, Feed, Novo caso (protótipo `design/prototype/#/` com os quatro eixos) | 🟡 protótipo |
+| Web | `apps/web/app/(app)/feed` (quatro eixos + "só sem resposta" na URL, `lib/feed-params.ts`, sem ranking), `/casos/novo` (seções do caso, 422 com todos os trechos identificadores), `/casos/[id]` (pareceres, resolver só o autor, "Registrar no prontuário" só o autor), `/grupos` (entrar por RQE ou aprovação) | ✅ |
 | Testes | `IdentifierDetectorTest` (corpus), `CommunityIT` (sem selo 403, RQE entra/sem RQE pede, bloqueio por identificador, publicar → parecer → resolver, segmentação por cada eixo, não-membro só vê a rede e recebe 404 no post do grupo, PROTOCOL/NOTICE recusados a pessoa física) | ✅ |

@@ -7,6 +7,9 @@ paths:
   - apps/core-api/src/main/java/**/identity/**
   - apps/core-api/src/main/resources/db/migration/V1__*.sql
   - apps/web/app/(auth)/**
+  - apps/web/app/(app)/seguranca/**
+  - apps/web/lib/api.ts
+  - apps/web/lib/server-api.ts
 ---
 
 # RF01 · Cadastro, login, 2FA e sessões
@@ -243,7 +246,8 @@ flowchart TD
 | API | `AuthController` (`/csrf`, `/register`, `/login`, `/login/2fa`, `/reactivate`, `/logout`, `/session`), `MeController` (`/me`, `/me/verify-email` reautentica para o principal refletir ACTIVE, `/me/verify-email/resend`) | ✅ |
 | Sessão | `SessionSupport.authenticate` carrega papéis globais (`user_role`) como `ROLE_*` e a flag `de.session.mfaEnabled` usada pelas rotas que exigem 2FA (RF12) | ✅ |
 | API | `MeSecurityController`: `POST /me/sudo`, `POST /me/password` (sudo, derruba as outras sessões), `GET /me/mfa`, `POST /me/mfa/totp/setup|confirm`, `POST /me/mfa/recovery-codes`, `DELETE /me/mfa`, `GET/DELETE /me/sessions[/{handle}]` (apelido por hash, nunca o id real), `POST /me/deletion` (sudo; RF10) | ✅ |
-| Web | telas Login, Cadastro, Segurança (protótipo em `design/prototype`: Sessões e segurança ✅) | 🟡 |
+| Web | `apps/web` (Next.js 16): `/login` em etapas (senha → 2FA → reativação, 429 com Retry-After), `/cadastro` (caixas desmarcadas, 422 por campo, versão dos textos), `/verificar-email` (código, reenvio), `/seguranca` (sudo 10 min, troca de senha, TOTP + códigos de recuperação, sessões por aparelho, pedir exclusão). `lib/api.ts`: mesma origem via rewrite, CSRF SPA (`XSRF-TOKEN` → `X-XSRF-TOKEN`), Problem Details; `lib/server-api.ts`: guarda de sessão no servidor (`(app)/layout.tsx`). Nunca token no cliente | ✅ |
 | Testes | `SchemaConsistencyTest`, `AccountStatusTest`, `EmailVerificationTest`, `PasswordPolicyTest`, `AppSecretPropertiesTest`, `SecurityHeadersTest` | ✅ |
 | Testes | `AuthFlowIT` com `support/ApiClient` (CSRF + sessão real no Valkey): cadastro → código → ativação → logout → login, 422 agrupado, CSRF, limite por conta, reenvio | ✅ |
+| Testes | `apps/web/e2e/flow.cjs` (navegador real contra a API real, job `web-e2e`): cadastro → código → selo → grupo → caso → feed → LGPD → sudo → logout → login neutro; `apps/web/tests` (cliente da API, eixos do feed) | ✅ |
 | Testes | `TotpTest`, `MfaIT` (sudo obrigatório, ativar TOTP, login em etapas, código de recuperação de uso único, bloqueio após 5 erros, troca de senha derruba outras sessões, listagem sem ids reais) | ✅ |

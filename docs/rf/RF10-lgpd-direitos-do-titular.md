@@ -192,5 +192,5 @@ Registros clínicos (RF08, RF09) **não** entram na saga: ficam no cofre clínic
 | Serviço | ZIP cifrado por URL pré-assinada (hoje: JSON autenticado por 24 h) | ⏳ com o S3 (RF05) |
 | Job | `ErasureJob` (03:15, cron configurável) | ✅ |
 | API | `GET/PUT /privacy/consents[/{purpose}]`, `GET /privacy/consents/history`, `GET /privacy/data`, `GET /privacy/sharing`, `POST /privacy/export` + `GET /privacy/export/{id}`, `POST/GET /privacy/dpo-requests`, `POST /me/deletion` (sudo, encerra sessões), `POST /auth/reactivate`, `GET /privacy/dpo/tickets` + `POST .../answer` (DPO + 2FA) | ✅ |
-| Web | telas de Privacidade (protótipo em `design/prototype/#/privacidade` e `#/encarregado`) | 🟡 protótipo |
+| Web | `apps/web/app/(app)/privacidade`: consentimentos por finalidade com desfazer, seus dados, cópia em JSON (24 h), com quem compartilhamos, pedido ao Encarregado com protocolo e prazo; exclusão com carência em `/seguranca` (sudo) | ✅ |
 | Testes | `PrivacyIT`: consentimentos desligados + histórico, seus dados + exportação (dono ou 404), exclusão exige sudo → oferta de reativação → reativa, saga anonimiza/destrói DEK/é idempotente/login neutro, Encarregado com protocolo e 422 | ✅ |

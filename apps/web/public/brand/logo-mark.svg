@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Doctor Explorer">
+  <!-- marca compacta para a barra lateral, favicon e app icon: anel + mapa + pin + lupa -->
+  <circle cx="32" cy="32" r="29" fill="#FFFFFF"/>
+  <path d="M15 24 L26 20 L26 44 L15 48 Z" fill="#45BD5A"/>
+  <path d="M26 20 L38 24 L38 48 L26 44 Z" fill="#2E9E44"/>
+  <path d="M38 24 L49 20 L49 44 L38 48 Z" fill="#45BD5A"/>
+  <circle cx="32" cy="26" r="6" fill="#FFFFFF" stroke="#D3DCE8" stroke-width="1.2"/>
+  <path d="M20 46 C20 38 25 34 32 34 C39 34 44 38 44 46 Z" fill="#FFFFFF" stroke="#D3DCE8" stroke-width="1.2"/>
+  <path d="M29 34 L32 40 L35 34 Z" fill="#1E6FE0"/>
+  <path d="M44 10 C40 10 37 13 37 17 C37 22 44 28 44 28 C44 28 51 22 51 17 C51 13 48 10 44 10 Z" fill="#E6412E"/>
+  <path d="M44 13.5 V20.5 M40.5 17 H47.5" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#1565E0" stroke-width="4"/>
+  <circle cx="42" cy="40" r="6" fill="#EEF4FA" stroke="#1565E0" stroke-width="2.6"/>
+  <path d="M46.5 44.5 L52 50" stroke="#1565E0" stroke-width="3.2" stroke-linecap="round"/>
+</svg>

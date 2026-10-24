@@ -7,8 +7,11 @@ hospitalares. Casos clínicos anonimizados, chat e vídeo com criptografia ponta
 prontuário, receita e pedido de exame com ICP-Brasil, diretório hospitalar com RBAC. Conformidade com
 **CFM, LGPD e Anvisa** desde o primeiro dia.
 
-Estado atual: **especificação**. Nenhum código de aplicação ainda; a ordem de entrega está em
-[docs/ESPECIFICACAO_TECNICA.md §11](docs/ESPECIFICACAO_TECNICA.md#11-plano-de-entrega).
+Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF04, RF10–RF12 (identidade, selo
+CRM/RQE, perfil, grupos e feed, LGPD, diretório hospitalar, RBAC); `apps/web` é a interface real em
+Next.js sobre essa API. Ordem de entrega em
+[docs/ESPECIFICACAO_TECNICA.md §11](docs/ESPECIFICACAO_TECNICA.md#11-plano-de-entrega); estado por
+história em [docs/TRELLO_BACKLOG.md](docs/TRELLO_BACKLOG.md).
 
 ## Documentação
 
@@ -51,9 +54,27 @@ python3 ../../scripts/gen_schema.py                    # regenera schema.sql dep
 Fora dos perfis `dev`/`it`, `DE_APP_SECRET` (Base64, 32+ bytes) é obrigatório. A `clinical-api` (PEP,
 prescrição, FHIR) entra na fase 9 com banco e chaves separados.
 
+## Web (`apps/web`)
+
+Next.js 16 (App Router) + Tailwind v4 com os tokens de `design/prototype/tokens.css` e os ícones de
+`design/icons` (o CI confere que as cópias batem). O navegador só fala com o próprio host: `/api/*` é
+reescrito para a core-api, então a sessão opaca e o `XSRF-TOKEN` ficam no mesmo site. **Nunca** token
+em localStorage; o único item guardado no aparelho é o tema.
+
+```bash
+pnpm install                                   # workspace na raiz (pnpm 10)
+cd apps/web
+API_ORIGIN=http://localhost:8080 pnpm dev      # http://localhost:3000 → /login
+pnpm check                                     # typecheck + eslint + vitest + next build (o mesmo do CI)
+```
+
+Telas: `/login` (senha → 2FA → reativação), `/cadastro`, `/verificar-email`, `/feed` (quatro eixos na
+URL), `/casos/novo`, `/casos/[id]`, `/grupos`, `/perfil` (+ selo CRM/RQE), `/perfil/[id]`,
+`/privacidade`, `/seguranca`, `/instituicoes`, `/instituicoes/[id]`.
+
 ## CI
 
-`.github/workflows/ci.yml`: `mvn verify` em JDK 21 e 25 · **Docs por RF** (`scripts/docs_por_rf.py`:
+`.github/workflows/ci.yml`: `mvn verify` em JDK 21 e 25 · `apps/web` (typecheck, lint, vitest, build) · `web-e2e` (navegador real contra a API real com PostGIS e Valkey) · **Docs por RF** (`scripts/docs_por_rf.py`:
 doc do RF atualizado no mesmo commit em que seu código muda + todo Mermaid renderiza) · contraste e
 protótipo · CodeQL · Gitleaks · Trivy · SBOM CycloneDX · Dependabot.
 

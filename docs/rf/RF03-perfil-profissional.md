@@ -124,5 +124,5 @@ flowchart TD
 | Serviço | `AdvertisingRuleChecker` (promessa de resultado, antes e depois, superlativos, preço/promoção, sensacionalismo) | ✅ (moderação de casos limítrofes ⏳) |
 | API | `GET /profiles/{id}` (visitante só vê PUBLIC_MINIMAL; rede verificada; MY_INSTITUTION exige vínculo em comum; sem acesso = 404), `PUT /me/profile` (nome, bio, visibilidade; mudar nome devolve o selo para PENDING) | ✅ |
 | Mídia | foto limpa por URL pré-assinada | ⏳ RF05 |
-| Web | Perfil, Editar perfil (protótipo `#/perfil`) | 🟡 |
+| Web | `apps/web/app/(app)/perfil`: meu perfil (nome, apresentação com aviso de publicidade médica, visibilidade) + envio de CRM/UF e RQE e evidências do selo (RF02); `/perfil/[id]`: perfil de colega renderizado no servidor com a visibilidade decidida pela API (404 sem acesso) | ✅ |
 | Testes | `DirectoryIT.profileVisibilityAndAdvertisingRules` | ✅ |

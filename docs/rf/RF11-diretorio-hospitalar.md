@@ -174,5 +174,5 @@ flowchart TD
 | Integração | `RegistryPorts` com `FakeRegistries` (dev/it) e `HttpRegistries` (BrasilAPI para CNPJ, dados abertos DATASUS para CNES) | ✅ (contrato HTTP ⚖️) |
 | Busca | `Institutions.search`: texto, UF e raio por Haversine em SQL; raio só com consentimento LOCATION (RF10) | ✅ (PostGIS/GiST: ADR-013) |
 | API | `GET /institutions` (público), `GET /institutions/{id}` (unidades, corpo clínico, `myRole`), `POST /institutions`, `GET /{id}/staff`, `POST /{id}/join`, `GET /{id}/members` (gestão), `POST /{id}/members/{userId}` (convida/aprova), `PUT .../role`, `DELETE .../members/{userId}`, `POST /institutions/{id}/posts` (protocolo/comunicado → feed dos vinculados, origem "instituição") | ✅ |
-| Web | Diretório, Página da instituição, Gestão (protótipo parcial) | 🟡 |
+| Web | `apps/web/app/(app)/instituicoes`: busca por texto/UF/raio (geolocalização só com consentimento LOCATION; aviso quando o raio é ignorado), página da instituição com unidades, corpo clínico verificado e pedido de vínculo. Gestão de membros e papéis na web | 🟡 (gestão ⏳) |
 | Testes | `DirectoryIT`: cadastro coerente vs CNES de outro CNPJ, 422 agrupado, busca pública e raio com/sem consentimento, vínculo pelos dois lados, herança na árvore e papel nunca acima do concedente, protocolo no feed só dos vinculados | ✅ |

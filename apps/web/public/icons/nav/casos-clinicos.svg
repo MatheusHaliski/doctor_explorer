@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+  <!-- Casos clínicos · mapa + pin com cruz -->
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4C97F5"/><stop offset="1" stop-color="#0F5BD6"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".55"/><stop offset=".55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE6F3"/>
+    </linearGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#0B2A5B" flood-opacity=".28"/>
+    </filter>
+    <clipPath id="c"><path d="M6 16l17-6 18 6 17-6v38l-17 6-18-6-17 6z"/></clipPath>
+  </defs>
+  <g filter="url(#s)">
+    <path d="M6 16l17-6 18 6 17-6v38l-17 6-18-6-17 6z" fill="url(#b)" stroke="#0B49B4" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+  <rect clip-path="url(#c)" x="0" y="0" width="64" height="64" fill="url(#g)"/>
+  <path d="M23 10v38M41 16v38" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M45 2a11 11 0 0 1 11 11c0 8-11 18-11 18S34 21 34 13A11 11 0 0 1 45 2z" fill="url(#w)" stroke="#0B49B4" stroke-width="1.5"/>
+  <path d="M43 8h4v4h4v4h-4v4h-4v-4h-4v-4h4z" fill="#0F5BD6"/>
+</svg>

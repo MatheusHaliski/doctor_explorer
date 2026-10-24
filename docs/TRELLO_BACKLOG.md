@@ -21,7 +21,7 @@ Quando um card muda de coluna, só o Trello muda; quando o texto muda, muda aqui
 | 🏁 Definition of Done | checklist |
 | 📏 Estimativa, métricas e roadmap | Fibonacci, métricas, 11 sprints |
 
-## 🧭 Épicos (a criar)
+## 🧭 Épicos (no quadro desde 2026-10-24)
 
 | Épico | Nome | RFs | Histórias |
 |---|---|---|---|
@@ -74,7 +74,7 @@ nos docs de RF.
 
 | ID | Tarefa | Pts | Estado |
 |---|---|---|---|
-| T01 | apps/core-api (Spring Boot 4.1, Java 21) + Compose (PostGIS, Valkey, Garage, Cassandra `full`); Turborepo entra com o `apps/web` | 5 | ✅ (Turborepo ⏳) |
+| T01 | apps/core-api (Spring Boot 4.1, Java 21) + Compose (PostGIS, Valkey, Garage, Cassandra `full`); workspace pnpm na raiz (`apps/web`, `packages/*`) | 5 | ✅ |
 | T02 | Flyway V1 (contas, termos, consentimentos, preferências, user_key) + `SchemaConsistencyTest` | 5 | ✅ |
 | T03 | `SecurityFilterChain`: CSRF SPA, CSP, Referrer-Policy, sessão Valkey, filtro de 24 h | 5 | ✅ |
 | T04 | Problem Details em pt-BR + `422` com `errors[]` | 3 | ✅ |
@@ -82,8 +82,9 @@ nos docs de RF.
 | T06 | `packages/tokens`: DTCG → Style Dictionary → `tokens.css`/`tokens.ts` + `scripts/wcag_contrast.py` | 5 | 🟡 (tokens.css + contraste ✅; Style Dictionary ⏳) |
 | T07 | Ícones SVGR em `packages/ui-web` a partir de `design/icons` | 3 | 🟡 (SVGs ✅; SVGR ⏳) |
 | T08 | Protótipo `design/prototype/index.html` + `render.mjs` | 5 | ✅ |
+| T09 | `apps/web`: Next.js 16 consumindo a core-api (login, cadastro, feed, caso, grupos, perfil, privacidade, segurança, instituições) + job `web` no CI | 13 | ✅ (gestão institucional e moderação na web ⏳) |
 
-Histórias já implementadas na API (telas só no protótipo): **US01–US06** (cadastro, código, login em
+Histórias já implementadas na API **e na web real (`apps/web`)**: **US01–US06** (cadastro, código, login em
 etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 ⏳), **US08–US10** (grupos por RQE, caso
 anonimizado com bloqueio por identificador, parecer; feed segmentado por tipo/especialidade/origem/estado),
 **US07** (perfil com visibilidade e publicidade médica), **US22–US24** (consentimentos, seus
@@ -94,4 +95,5 @@ institucionais na árvore), **US26–US27** (instituição com CNPJ+CNES, busca 
 ## ❓ Questões abertas
 
 Espelho de [QUESTOES_ABERTAS.md](QUESTOES_ABERTAS.md): um card por pergunta (Q01–Q18), com o dono na
-descrição.
+descrição. **Criados no quadro em 2026-10-24**, junto com E0–E6 (checklist de histórias por épico),
+US01–US29 (implementadas em ✅ Concluído, restantes em 📋 Product Backlog) e T01–T09 (T06, T07 e T09 em 🔄 Em andamento).

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+  <!-- Privacidade · escudo com cadeado -->
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4C97F5"/><stop offset="1" stop-color="#0F5BD6"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".55"/><stop offset=".55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE6F3"/>
+    </linearGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#0B2A5B" flood-opacity=".28"/>
+    </filter>
+    <clipPath id="c"><path d="M32 5l22 8v15c0 13-9.5 23-22 30C19.5 51 10 41 10 28V13z"/></clipPath>
+  </defs>
+  <g filter="url(#s)">
+    <path d="M32 5l22 8v15c0 13-9.5 23-22 30C19.5 51 10 41 10 28V13z" fill="url(#b)" stroke="#0B49B4" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+  <rect clip-path="url(#c)" x="0" y="0" width="64" height="64" fill="url(#g)"/>
+  <path d="M23 28h18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H23a2 2 0 0 1-2-2V30a2 2 0 0 1 2-2z" fill="url(#w)"/>
+  <path d="M26 28v-5a6 6 0 0 1 12 0v5" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

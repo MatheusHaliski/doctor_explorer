@@ -82,6 +82,93 @@ jobs:
           name: prototype-shots
           path: design/prototype/shots
 
+  web:
+    name: apps/web · typecheck, lint, testes, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Ícones e tokens do web são cópias fiéis de design/
+        run: |
+          diff -r design/icons/nav apps/web/public/icons/nav
+          diff -r design/icons/topbar apps/web/public/icons/topbar
+          diff design/prototype/tokens.css apps/web/styles/tokens.css
+          diff design/brand/logo-mark.svg apps/web/public/brand/logo-mark.svg
+      - name: typecheck + lint + vitest + next build
+        working-directory: apps/web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm check
+
+  web-e2e:
+    name: apps/web · e2e no navegador (API real)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_DB: doctor_explorer
+          POSTGRES_USER: de
+          POSTGRES_PASSWORD: de
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U de" --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:9
+        ports: ["6379:6379"]
+        options: --health-cmd "valkey-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: core-api (perfil dev) em segundo plano
+        working-directory: apps/core-api
+        run: |
+          mvn -B -ntp -DskipTests package
+          SPRING_PROFILES_ACTIVE=dev nohup java -jar target/core-api-*.jar > "$RUNNER_TEMP/api.log" 2>&1 &
+      - name: web (next build + start) em segundo plano
+        working-directory: apps/web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          API_ORIGIN: http://localhost:8080
+        run: |
+          pnpm build
+          nohup pnpm start -p 3000 > "$RUNNER_TEMP/web.log" 2>&1 &
+      - name: Playwright
+        run: npm install playwright@1.56.1 && npx playwright install --with-deps chromium
+      - name: Esperar API e web
+        run: |
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/api/v1/ping >/dev/null && curl -sf http://localhost:3000/login >/dev/null && exit 0; sleep 2; done
+          echo "API ou web não subiram"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log"; exit 1
+      - name: Fluxo ponta a ponta
+        working-directory: apps/web
+        env:
+          API_LOG: ${{ runner.temp }}/api.log
+          SHOTS: ${{ runner.temp }}/shots
+          PLAYWRIGHT_ROOT: ${{ github.workspace }}/node_modules
+        run: node e2e/flow.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-e2e
+          path: |
+            ${{ runner.temp }}/shots
+            ${{ runner.temp }}/api.log
+            ${{ runner.temp }}/web.log
+
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
