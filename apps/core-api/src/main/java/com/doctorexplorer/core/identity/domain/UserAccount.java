@@ -75,6 +75,11 @@ public class UserAccount {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
+    public void rename(String displayName) {
+        this.displayName = displayName.trim();
+        touch();
+    }
+
     public void activate() {
         status = status.transitionTo(AccountStatus.ACTIVE);
         activatedAt = Instant.now();

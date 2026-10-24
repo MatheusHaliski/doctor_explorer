@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/2fa",
                         "/api/v1/auth/reactivate", "/api/v1/auth/logout").permitAll()
                 .requestMatchers("/api/v1/ping", "/actuator/health", "/actuator/health/**").permitAll()
-                .requestMatchers("/api/v1/institutions", "/api/v1/institutions/*").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/institutions", "/api/v1/institutions/*", "/api/v1/profiles/*").permitAll()
                 // papéis sensíveis: papel + 2FA ativo. A auditoria também é lida pelo Encarregado (RF13, recorte de privacidade).
                 .requestMatchers("/api/v1/admin/audit/**", "/api/v1/admin/audit").access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN", "DPO"))
                 .requestMatchers("/api/v1/admin/**").access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN"))

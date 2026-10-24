@@ -63,6 +63,12 @@ public class ProfessionalProfile {
     public void markManualReview() { moveSeal(SealStatus.MANUAL_REVIEW); }
     public void markRevoked() { moveSeal(SealStatus.REVOKED); }
 
+    public void edit(String bio, Visibility visibility) {
+        this.bio = bio;
+        this.visibility = visibility;
+        this.updatedAt = Instant.now();
+    }
+
     /** Nome, CRM ou especialidade de conta verificada mudou: o selo volta para análise. */
     public void onIdentityChanged() {
         if (seal == SealStatus.VERIFIED) moveSeal(SealStatus.PENDING);

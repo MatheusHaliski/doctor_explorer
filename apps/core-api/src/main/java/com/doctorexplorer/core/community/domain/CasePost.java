@@ -23,7 +23,7 @@ public class CasePost {
 
     public enum Kind { CASE, OPINION_REQUEST, PROTOCOL, NOTICE, EDUCATION }
 
-    public enum Audience { GROUP, NETWORK }
+    public enum Audience { GROUP, NETWORK, INSTITUTION }
 
     public enum State { DRAFT, PUBLISHED, RESOLVED, HIDDEN, DELETED }
 
@@ -83,6 +83,9 @@ public class CasePost {
     @Column(name = "hidden_reason")
     private String hiddenReason;
 
+    @Column(name = "institution_id")
+    private UUID institutionId;
+
     protected CasePost() {}
 
     public CasePost(UUID groupId, UUID authorId, Kind kind, Audience audience, String title, Sections s, List<String> tags) {
@@ -128,6 +131,12 @@ public class CasePost {
         state = State.DELETED;
         updatedAt = Instant.now();
     }
+
+    public void setInstitutionId(UUID institutionId) {
+        this.institutionId = institutionId;
+    }
+
+    public UUID getInstitutionId() { return institutionId; }
 
     public FeedState feedState() {
         if (state == State.RESOLVED) return FeedState.RESOLVIDO;

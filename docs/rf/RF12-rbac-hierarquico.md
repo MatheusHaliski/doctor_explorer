@@ -194,7 +194,8 @@ flowchart TD
 | Migração | `V2` (`user_role`: MODERATOR, ADMIN, DPO, TECHNICAL_DIRECTOR) | ✅ |
 | Config | `SecurityConfig`: rota × papel global (`/admin/audit` → MODERATOR/ADMIN/DPO **+ 2FA**, demais `/admin/**` → MODERATOR/ADMIN **+ 2FA**, `/privacy/dpo/**` → DPO **+ 2FA** via `MfaRequiredAuthorizationManager`; rotas públicas de auth/diretório; resto autenticado), 401 sem sessão, 403 sem papel | ✅ |
 | Domínio | `AccessService` (`requireActive`, `requireVerifiedSeal` para escrita social/clínica, `requireVerifiedSealOrModerator` para leitura de grupos/feed, `requireOwnerOr404`) | ✅ |
-| Domínio | `InstitutionTreePolicy` (papéis institucionais, herança rede → hospital → unidade) | ⏳ RF11 |
+| Domínio | `InstitutionTreePolicy` (papéis institucionais, herança rede → hospital → unidade, concessão limitada ao próprio papel) | ✅ |
 | Testes | `SecurityHeadersTest` (401 sem sessão) | ✅ |
 | Testes | `AccessMatrixIT` (lê a tabela deste doc; rotas implementadas `/me/**`, `POST /credentials`, `GET /groups/**`, `POST /posts`, `GET /admin/audit`, `GET /privacy/dpo/tickets` × visitante/pendente/ativo/verificado/moderador/DPO) | ✅ |
-| Testes | `InstitutionTreePolicyTest` | ⏳ RF11 |
+| Testes | `DirectoryIT` (herança na árvore, papel nunca acima do concedente, 403 com motivo × 404 fora da árvore) | ✅ |
+| Config | `GET /institutions`, `GET /institutions/{id}` e `GET /profiles/{id}` públicos (visibilidade decidida no domínio) | ✅ |

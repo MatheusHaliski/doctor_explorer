@@ -167,7 +167,12 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Migração | `V3__institutions.sql` (PostGIS) | ⏳ |
-| Domínio | `Institution`, `Membership` | ⏳ |
-| Integração | adapters CNPJ e CNES | ⏳ |
-| Testes | `DirectorySearchIT` (PostGIS real), `MembershipIT` | ⏳ |
+| Migração | `V5__instituicoes.sql` (institution com hierarquia por `parent_id`, institution_check, institution_membership, audiência INSTITUTION em case_post) | ✅ |
+| Domínio | `Institution` (NETWORK/HOSPITAL/UNIT, VERIFICANDO→VERIFICADA/REJEITADA), `InstitutionMembership` (papéis com hierarquia, INVITED/REQUESTED/ACTIVE), `InstitutionCheck` | ✅ |
+| Serviço | `DirectoryService`: cadastro com validação completa, conferência CNPJ (situação ATIVA) + CNES (mesmo CNPJ), quem cadastra vira gestor, vínculo aceito pelos dois lados, papéis na árvore, corpo clínico só com selo VERIFIED | ✅ |
+| Serviço | `InstitutionTreePolicy`: papel efetivo = maior papel ativo na instituição ou em ancestral (herda para baixo, nunca para cima); concede no máximo o próprio papel | ✅ |
+| Integração | `RegistryPorts` com `FakeRegistries` (dev/it) e `HttpRegistries` (BrasilAPI para CNPJ, dados abertos DATASUS para CNES) | ✅ (contrato HTTP ⚖️) |
+| Busca | `Institutions.search`: texto, UF e raio por Haversine em SQL; raio só com consentimento LOCATION (RF10) | ✅ (PostGIS/GiST: ADR-013) |
+| API | `GET /institutions` (público), `GET /institutions/{id}` (unidades, corpo clínico, `myRole`), `POST /institutions`, `GET /{id}/staff`, `POST /{id}/join`, `GET /{id}/members` (gestão), `POST /{id}/members/{userId}` (convida/aprova), `PUT .../role`, `DELETE .../members/{userId}`, `POST /institutions/{id}/posts` (protocolo/comunicado → feed dos vinculados, origem "instituição") | ✅ |
+| Web | Diretório, Página da instituição, Gestão (protótipo parcial) | 🟡 |
+| Testes | `DirectoryIT`: cadastro coerente vs CNES de outro CNPJ, 422 agrupado, busca pública e raio com/sem consentimento, vínculo pelos dois lados, herança na árvore e papel nunca acima do concedente, protocolo no feed só dos vinculados | ✅ |

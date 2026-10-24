@@ -166,7 +166,7 @@ flowchart TD
 | Camada | Artefato | Status |
 |---|---|---|
 | Migração | `V2__credenciamento.sql` (`professional_profile`, `specialty_claim`, `credential_check`, `user_role`) | ✅ |
-| Domínio | `ProfessionalProfile` (CRM/UF, selo com máquina de estados, `onIdentityChanged`), `SpecialtyClaim`, `CredentialCheck`, `SealStatus` | ✅ |
+| Domínio | `ProfessionalProfile` (CRM/UF, selo com máquina de estados, `onIdentityChanged` acionado ao renomear no RF03, `edit` de bio/visibilidade), `SpecialtyClaim`, `CredentialCheck`, `SealStatus` | ✅ |
 | Serviço | `CredentialingService`: validação completa (422), comparação de nome (sem título/acento), situação e RQE por especialidade, evidência com hash, `MANUAL_REVIEW` após 24 h sem fonte | ✅ |
 | Integração | `CfmRegistryPort` + `HttpCfmRegistry` (contrato a confirmar, ADR-009/Q04) + `FakeCfmRegistry` (dev/it, determinístico por CRM) | ✅ (HTTP real ⚖️) |
 | Integração | fila/outbox com retry e circuit breaker | ⏳ com o barramento (ADR-002) |

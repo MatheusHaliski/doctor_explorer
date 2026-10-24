@@ -17,6 +17,7 @@ decisão, alternativas, consequências, status. Status possíveis: **proposto ·
 | [ADR-010](#adr-010--mls-rfc-9420-para-chat-e2ee) | MLS (RFC 9420) para chat E2EE | proposto |
 | [ADR-011](#adr-011--infraestrutura-gerenciada-na-aws-sa-east-1) | Infraestrutura gerenciada na AWS sa-east-1 | proposto |
 | [ADR-012](#adr-012--dcm4che-e-tesseract-na-anonimização) | dcm4che e Tesseract na anonimização | proposto |
+| [ADR-013](#adr-013--busca-por-raio-haversine-agora-postgis-depois) | Busca por raio: Haversine agora, PostGIS depois | aceito |
 
 ---
 
@@ -124,6 +125,20 @@ na stack: revisão criptográfica externa obrigatória.
 cluster, Cassandra em Keyspaces ou autogerido em 3 AZs (decidir por custo), S3 com Object Lock, KMS com
 HSM, ECS Fargate ou EKS para os contêineres Jib. Backup secundário em outra região **⚖️ transferência
 internacional**.
+
+## ADR-013 · Busca por raio: Haversine agora, PostGIS depois
+
+**Contexto.** A stack prevê PostGIS para a busca por raio. O diretório do MVP tem centenas de
+instituições, e os ambientes de desenvolvimento restritos nem sempre têm a extensão instalada.
+
+**Decisão.** `institution.lat/lng` em `double precision` e distância por Haversine em SQL puro
+(`Institutions.search`), que roda em qualquer PostgreSQL. O Compose e o CI já usam a imagem
+`postgis/postgis:17-3.5`; quando o diretório passar de alguns milhares de linhas ou a busca por raio
+entrar no caminho crítico, uma migração adiciona `location geography(Point, 4326)` gerada de `lat/lng`,
+índice GiST e `ST_DWithin`, sem mudar a API.
+
+**Consequências.** Varredura completa na busca por raio (aceitável no MVP); a troca é só de migração e
+query.
 
 ## ADR-012 · dcm4che e Tesseract na anonimização
 

@@ -9,6 +9,8 @@ import com.doctorexplorer.core.community.repo.GroupMemberships;
 import com.doctorexplorer.core.community.repo.PostComments;
 import com.doctorexplorer.core.community.repo.SpecialtyGroups;
 import com.doctorexplorer.core.credentialing.repo.SpecialtyClaims;
+import com.doctorexplorer.core.institution.domain.InstitutionMembership;
+import com.doctorexplorer.core.institution.service.DirectoryService;
 import com.doctorexplorer.core.web.ApiExceptionHandler.FieldProblem;
 import com.doctorexplorer.core.web.ApiProblemException;
 import com.doctorexplorer.core.web.ValidationProblemException;
@@ -43,15 +45,17 @@ public class CommunityService {
     private final PostComments comments;
     private final SpecialtyClaims claims;
     private final IdentifierDetector detector;
+    private final DirectoryService directory;
 
     public CommunityService(SpecialtyGroups groups, GroupMemberships memberships, CasePosts posts, PostComments comments,
-            SpecialtyClaims claims, IdentifierDetector detector) {
+            SpecialtyClaims claims, IdentifierDetector detector, DirectoryService directory) {
         this.groups = groups;
         this.memberships = memberships;
         this.posts = posts;
         this.comments = comments;
         this.claims = claims;
         this.detector = detector;
+        this.directory = directory;
     }
 
     @Transactional(readOnly = true)
@@ -127,10 +131,36 @@ public class CommunityService {
         return posts.save(p);
     }
 
+    /** RF11 · Protocolo ou comunicado da instituição: gestor com papel que publica; vai ao feed dos vinculados (origem "instituição"). */
+    @Transactional
+    public CasePost publishInstitutional(UUID authorId, UUID institutionId, CasePost.Kind kind, String specialtyCode, String title, String body, List<String> tags) {
+        InstitutionMembership.Role role = directory.effectiveRole(authorId, institutionId).orElseThrow(this::notFound);
+        if (!role.canPublishInstitutional()) {
+            throw new ApiProblemException(HttpStatus.FORBIDDEN, "sem-papel", "Sem permissão para publicar pela instituição",
+                    "Seu papel " + role.name() + " não publica protocolos ou comunicados.");
+        }
+        if (kind != CasePost.Kind.PROTOCOL && kind != CasePost.Kind.NOTICE) {
+            throw new ApiProblemException(HttpStatus.UNPROCESSABLE_CONTENT, "tipo", "Tipo inválido", "A instituição publica PROTOCOL ou NOTICE.");
+        }
+        List<FieldProblem> problems = new ArrayList<>();
+        if (title == null || title.trim().length() < 8) problems.add(new FieldProblem("title", "O título precisa ter pelo menos 8 caracteres."));
+        for (IdentifierDetector.Match m : detector.scan(body)) problems.add(new FieldProblem("body", "Possível identificador (" + m.type() + ") em \"" + m.excerpt() + "\". " + m.hint()));
+        if (!problems.isEmpty()) throw new ValidationProblemException(problems);
+        SpecialtyGroup g = groupByCode(specialtyCode == null ? "CLIN" : specialtyCode);
+        CasePost p = new CasePost(g.getId(), authorId, kind, CasePost.Audience.INSTITUTION, title,
+                new CasePost.Sections(body, null, null, null, null), tags);
+        p.setInstitutionId(institutionId);
+        return posts.save(p);
+    }
+
     @Transactional(readOnly = true)
     public CasePost view(UUID viewerId, UUID postId) {
         CasePost p = posts.findById(postId).filter(CasePost::isVisible).orElseThrow(this::notFound);
         if (p.getAudience() == CasePost.Audience.GROUP && !isActiveMember(viewerId, p.getGroupId()) && !p.getAuthorId().equals(viewerId)) {
+            throw notFound();
+        }
+        if (p.getAudience() == CasePost.Audience.INSTITUTION && !p.getAuthorId().equals(viewerId)
+                && directory.membershipsOf(viewerId).stream().noneMatch(m -> m.getInstitutionId().equals(p.getInstitutionId()))) {
             throw notFound();
         }
         return p;
@@ -190,13 +220,14 @@ public class CommunityService {
         Set<UUID> myGroups = memberships.findByUserIdAndState(viewerId, GroupMembership.State.ACTIVE).stream()
                 .map(GroupMembership::getGroupId).collect(Collectors.toSet());
         Map<UUID, String> codeByGroup = groups.findAll().stream().collect(Collectors.toMap(SpecialtyGroup::getId, SpecialtyGroup::getSpecialtyCode));
-        return posts.feed(myGroups.isEmpty() ? List.of(new UUID(0, 0)) : myGroups, PageRequest.of(0, PAGE)).stream()
+        Set<UUID> myInstitutions = directory.membershipsOf(viewerId).stream().map(InstitutionMembership::getInstitutionId).collect(Collectors.toSet());
+        return posts.feed(myGroups.isEmpty() ? List.of(new UUID(0, 0)) : myGroups, myInstitutions.isEmpty() ? List.of(new UUID(0, 0)) : myInstitutions, PageRequest.of(0, PAGE)).stream()
                 .filter(p -> f.kind() == null || p.getKind() == f.kind())
                 .filter(p -> f.specialties() == null || f.specialties().isEmpty() || f.specialties().contains(codeByGroup.get(p.getGroupId())))
                 .filter(p -> f.origin() == null || switch (f.origin()) {
                     case "grupo" -> myGroups.contains(p.getGroupId()) && p.getAudience() == CasePost.Audience.GROUP;
                     case "rede" -> p.getAudience() == CasePost.Audience.NETWORK;
-                    case "instituicao" -> false; // entra com o RF11
+                    case "instituicao" -> p.getAudience() == CasePost.Audience.INSTITUTION;
                     default -> true;
                 })
                 .filter(p -> f.state() == null || p.feedState() == f.state())

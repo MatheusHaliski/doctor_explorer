@@ -19,10 +19,12 @@ public interface CasePosts extends JpaRepository<CasePost, UUID> {
     @Query("""
             select p from CasePost p
             where p.state in (com.doctorexplorer.core.community.domain.CasePost$State.PUBLISHED, com.doctorexplorer.core.community.domain.CasePost$State.RESOLVED)
-              and (p.audience = com.doctorexplorer.core.community.domain.CasePost$Audience.NETWORK or p.groupId in :groupIds)
+              and (p.audience = com.doctorexplorer.core.community.domain.CasePost$Audience.NETWORK
+                   or (p.audience = com.doctorexplorer.core.community.domain.CasePost$Audience.GROUP and p.groupId in :groupIds)
+                   or (p.audience = com.doctorexplorer.core.community.domain.CasePost$Audience.INSTITUTION and p.institutionId in :institutionIds))
             order by p.createdAt desc
             """)
-    List<CasePost> feed(@Param("groupIds") Collection<UUID> groupIds, Pageable pageable);
+    List<CasePost> feed(@Param("groupIds") Collection<UUID> groupIds, @Param("institutionIds") Collection<UUID> institutionIds, Pageable pageable);
 
     List<CasePost> findByAuthorIdOrderByCreatedAtDesc(UUID authorId);
 }

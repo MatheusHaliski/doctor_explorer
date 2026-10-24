@@ -86,9 +86,10 @@ nos docs de RF.
 Histórias já implementadas na API (telas só no protótipo): **US01–US06** (cadastro, código, login em
 etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 ⏳), **US08–US10** (grupos por RQE, caso
 anonimizado com bloqueio por identificador, parecer; feed segmentado por tipo/especialidade/origem/estado),
-**US22–US24** (consentimentos, seus dados/exportação, exclusão com carência e reativação), **US25 parcial**
-(papéis globais + 2FA obrigatório; papéis institucionais com o RF11). Cobertura: `AuthFlowIT`, `MfaIT`,
-`CredentialingIT`, `AccessMatrixIT`, `PrivacyIT`, `CommunityIT`.
+**US07** (perfil com visibilidade e publicidade médica), **US22–US24** (consentimentos, seus
+dados/exportação, exclusão com carência e reativação), **US25** (papéis globais + 2FA obrigatório; papéis
+institucionais na árvore), **US26–US27** (instituição com CNPJ+CNES, busca por texto/UF/raio). Cobertura:
+`AuthFlowIT`, `MfaIT`, `CredentialingIT`, `AccessMatrixIT`, `PrivacyIT`, `CommunityIT`, `DirectoryIT`.
 
 ## ❓ Questões abertas
 

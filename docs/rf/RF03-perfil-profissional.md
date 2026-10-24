@@ -120,7 +120,9 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Domínio | `ProfessionalProfile`, `Visibility` | ⏳ |
-| Serviço | `ProfileService`, `AdvertisingRuleChecker` | ⏳ |
-| Web | Perfil, Editar perfil | ⏳ |
-| Testes | `ProfileVisibilityIT` | ⏳ |
+| Domínio | `ProfessionalProfile` (bio, `Visibility`, `edit`, `onIdentityChanged`), `UserAccount.rename` | ✅ |
+| Serviço | `AdvertisingRuleChecker` (promessa de resultado, antes e depois, superlativos, preço/promoção, sensacionalismo) | ✅ (moderação de casos limítrofes ⏳) |
+| API | `GET /profiles/{id}` (visitante só vê PUBLIC_MINIMAL; rede verificada; MY_INSTITUTION exige vínculo em comum; sem acesso = 404), `PUT /me/profile` (nome, bio, visibilidade; mudar nome devolve o selo para PENDING) | ✅ |
+| Mídia | foto limpa por URL pré-assinada | ⏳ RF05 |
+| Web | Perfil, Editar perfil (protótipo `#/perfil`) | 🟡 |
+| Testes | `DirectoryIT.profileVisibilityAndAdvertisingRules` | ✅ |

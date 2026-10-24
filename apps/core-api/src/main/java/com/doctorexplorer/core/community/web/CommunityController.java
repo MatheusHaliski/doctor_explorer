@@ -44,6 +44,8 @@ public class CommunityController {
 
     public record HideRequest(String reason) {}
 
+    public record InstitutionalPostRequest(String kind, String specialtyCode, String title, String body, List<String> tags) {}
+
     private final CommunityService community;
     private final AccessService access;
     private final SessionSupport sessions;
@@ -138,6 +140,15 @@ public class CommunityController {
         return ResponseEntity.noContent().build();
     }
 
+    /** RF11 · Protocolo/comunicado publicado pela instituição (gestor com papel que publica). */
+    @PostMapping("/institutions/{institutionId}/posts")
+    ResponseEntity<Map<String, Object>> publishInstitutional(@PathVariable UUID institutionId, @RequestBody InstitutionalPostRequest req) {
+        UUID userId = access.requireActive().userId();
+        CasePost p = community.publishInstitutional(userId, institutionId, parse(CasePost.Kind.class, req.kind()), req.specialtyCode(),
+                req.title() == null ? "" : req.title(), req.body(), req.tags());
+        return ResponseEntity.status(HttpStatus.CREATED).body(postView(p));
+    }
+
     /** Moderação: rota /admin (papel + 2FA via SecurityConfig). */
     @PostMapping("/admin/posts/{id}/hide")
     Map<String, Object> hide(@PathVariable UUID id, @RequestBody HideRequest req) {
@@ -150,7 +161,7 @@ public class CommunityController {
         m.put("id", p.getId());
         m.put("kind", p.getKind().name());
         m.put("specialty", community.specialtyCodeOf(p.getGroupId()));
-        m.put("origin", p.getAudience() == CasePost.Audience.NETWORK ? "rede" : "grupo");
+        m.put("origin", switch (p.getAudience()) { case NETWORK -> "rede"; case GROUP -> "grupo"; case INSTITUTION -> "instituicao"; });
         m.put("state", p.feedState().name());
         m.put("title", p.getTitle());
         m.put("summary", n(p.sections().question()).isEmpty() ? n(p.sections().complaint()) : n(p.sections().question()));

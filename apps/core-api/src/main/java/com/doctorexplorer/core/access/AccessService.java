@@ -52,6 +52,11 @@ public class AccessService {
                 "Esta função fica disponível depois que seu CRM for verificado. Envie CRM/UF e RQE em /api/v1/credentials.");
     }
 
+    /** Igual a {@link #isPlatformModerator()}, mas seguro para rotas públicas (sem sessão → false). */
+    public boolean isPlatformModeratorSafe() {
+        return sessions.current().isPresent() && isPlatformModerator();
+    }
+
     public boolean isPlatformModerator() {
         var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.getAuthorities().stream()

@@ -189,7 +189,8 @@ flowchart TD
 | Domínio | `SpecialtyGroup`, `GroupMembership` (REQUESTED/ACTIVE/REMOVED), `CasePost` (tipo, origem, estado derivado `feedState()`, resolver/ocultar/excluir), `PostComment` (parecer) | ✅ |
 | Serviço | `IdentifierDetector` (CPF, CNS, telefone, e-mail, data completa, nº de prontuário, "paciente Nome Sobrenome"; conservador, com trecho e dica) | ✅ (NER pt-BR ⏳) |
 | Serviço | `CommunityService`: entrada automática por RQE confirmado ou pedido + aprovação por moderador, publicação bloqueada por identificador (422 com todos os trechos), parecer muda estado, resolver só pelo autor (404 para os demais), ocultar por moderação, feed por recência com filtros combináveis (tipo, especialidade, origem, estado, "só sem resposta") | ✅ |
-| Serviço | mídia anonimizada no post (RF05), origem "minha instituição" e tipos PROTOCOL/NOTICE (RF11), notificações sem conteúdo (Cassandra) | ⏳ |
+| Serviço | origem "minha instituição": audiência INSTITUTION, `publishInstitutional` (PROTOCOL/NOTICE por gestor com papel que publica; RF11) | ✅ |
+| Serviço | mídia anonimizada no post (RF05), notificações sem conteúdo (Cassandra) | ⏳ |
 | API | `GET /groups`, `POST /groups/{code}/join`, `POST /groups/{code}/members/{id}/approve`, `GET /feed?kind&specialty&origin&state&unanswered`, `POST /posts`, `GET /posts/{id}` (com `canRecordInEhr` só para o autor), `POST /posts/{id}/comments`, `POST /posts/{id}/resolve`, `DELETE /posts/{id}`, `POST /admin/posts/{id}/hide` | ✅ |
 | Web | Grupos, Feed, Novo caso (protótipo `design/prototype/#/` com os quatro eixos) | 🟡 protótipo |
 | Testes | `IdentifierDetectorTest` (corpus), `CommunityIT` (sem selo 403, RQE entra/sem RQE pede, bloqueio por identificador, publicar → parecer → resolver, segmentação por cada eixo, não-membro só vê a rede e recebe 404 no post do grupo, PROTOCOL/NOTICE recusados a pessoa física) | ✅ |
