@@ -163,6 +163,7 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
+| Base | pacote `admin` já tem `AdminController` (`GET /admin/audit`, estrutura vazia para a matriz RF12) e a fila de moderação `ModerationService`/`ModerationController` (`/admin/moderation/**`, especificada no RF02/US06). As decisões de moderação hoje ficam em `credential_check` (fonte `moderador`); entram no `audit_event` encadeado quando a auditoria chegar | ✅ (base) |
 | Serviço | `MetricsService`, `AuditService`, `QualityService` | ⏳ |
 | Dados | Cassandra `audit_event` com hash encadeado | ⏳ |
 | Web | páginas admin com gráficos acessíveis | ⏳ |
