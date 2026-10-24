@@ -72,16 +72,19 @@ nos docs de RF.
 
 ## 🏃 Sprint 1 · Fundação · tarefas técnicas
 
-| ID | Tarefa | Pts |
-|---|---|---|
-| T01 | Monorepo Turborepo + apps/core-api (Spring Boot 4.1, Java 21) + Compose (PostGIS, Valkey, Garage, Cassandra `full`) | 5 |
-| T02 | Flyway V1 (contas, termos, consentimentos, preferências, user_key) + `SchemaConsistencyTest` | 5 |
-| T03 | `SecurityFilterChain`: CSRF SPA, CSP, Referrer-Policy, sessão Valkey, filtro de 24 h | 5 |
-| T04 | Problem Details em pt-BR + `422` com `errors[]` | 3 |
-| T05 | CI: `mvn verify` em JDK 21 e 25, Docs por RF (Mermaid), CodeQL, Gitleaks, Trivy, SBOM | 5 |
-| T06 | `packages/tokens`: DTCG → Style Dictionary → `tokens.css`/`tokens.ts` + `scripts/wcag_contrast.py` | 5 |
-| T07 | Ícones SVGR em `packages/ui-web` a partir de `design/icons` | 3 |
-| T08 | Protótipo `design/prototype/index.html` + `render.mjs` | 5 |
+| ID | Tarefa | Pts | Estado |
+|---|---|---|---|
+| T01 | apps/core-api (Spring Boot 4.1, Java 21) + Compose (PostGIS, Valkey, Garage, Cassandra `full`); Turborepo entra com o `apps/web` | 5 | ✅ (Turborepo ⏳) |
+| T02 | Flyway V1 (contas, termos, consentimentos, preferências, user_key) + `SchemaConsistencyTest` | 5 | ✅ |
+| T03 | `SecurityFilterChain`: CSRF SPA, CSP, Referrer-Policy, sessão Valkey, filtro de 24 h | 5 | ✅ |
+| T04 | Problem Details em pt-BR + `422` com `errors[]` | 3 | ✅ |
+| T05 | CI: `mvn verify` em JDK 21 e 25, Docs por RF (Mermaid), CodeQL, Gitleaks, Trivy, SBOM | 5 | ✅ |
+| T06 | `packages/tokens`: DTCG → Style Dictionary → `tokens.css`/`tokens.ts` + `scripts/wcag_contrast.py` | 5 | 🟡 (tokens.css + contraste ✅; Style Dictionary ⏳) |
+| T07 | Ícones SVGR em `packages/ui-web` a partir de `design/icons` | 3 | 🟡 (SVGs ✅; SVGR ⏳) |
+| T08 | Protótipo `design/prototype/index.html` + `render.mjs` | 5 | ✅ |
+
+Histórias já implementadas na API (sem telas reais): **US01, US02, US03 (só senha; TOTP no passo 3)** ·
+`AuthFlowIT` cobre cadastro, código, ativação, logout, login, 422 agrupado, CSRF, limite e reenvio.
 
 ## ❓ Questões abertas
 

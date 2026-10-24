@@ -14,24 +14,23 @@ spring:
       ddl-auto: validate
   flyway:
     locations: classpath:db/migration
+  data:
+    redis:
+      host: ${DE_VALKEY_HOST:localhost}
+      port: ${DE_VALKEY_PORT:6379}
+  session:
+    timeout: 60m
+    redis:
+      namespace: de:session
+      repository-type: indexed
   mvc:
     problemdetails:
       enabled: true
-  session:
-    timeout: 60m
   web:
     locale: pt_BR
     locale-resolver: fixed
 
 server:
-  servlet:
-    session:
-      cookie:
-        name: __Host-de_session
-        http-only: true
-        secure: true
-        same-site: lax
-        path: /
   error:
     include-message: never
     include-stacktrace: never
@@ -47,10 +46,13 @@ management:
         enabled: true
 
 doctor-explorer:
-  # Base64 de 32+ bytes; obrigatório fora dos perfis dev/it (validado em AppSecretProperties no passo 2).
+  # Base64 de 32+ bytes; obrigatório fora dos perfis dev/it (AppSecretValidator recusa subir sem ele).
   app-secret: ${DE_APP_SECRET:}
   session:
     absolute-timeout: 24h
+    # Cookie da sessão opaca (SessionConfig): HttpOnly, Secure, SameSite=Lax, Path=/, sem Max-Age.
+    cookie-name: __Host-de_session
+    cookie-secure: true
   terms:
     version: "2026-10-24"
     privacy-version: "2026-10-24"

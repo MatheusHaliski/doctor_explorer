@@ -33,12 +33,24 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         List<FieldProblem> errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> new FieldProblem(e.getField(), messageOf(e)))
                 .toList();
-        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
-                errors.size() == 1 ? "Há 1 campo para corrigir." : "Há " + errors.size() + " campos para corrigir.");
-        pd.setTitle("Dados inválidos");
-        pd.setType(TYPE_VALIDATION);
-        pd.setProperty("errors", errors);
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).headers(headers).body(pd);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).headers(headers).body(validationProblem(errors));
+    }
+
+    @ExceptionHandler(ValidationProblemException.class)
+    ResponseEntity<ProblemDetail> handleValidationProblem(ValidationProblemException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(validationProblem(ex.problems()));
+    }
+
+    @ExceptionHandler(ApiProblemException.class)
+    ResponseEntity<ProblemDetail> handleApiProblem(ApiProblemException ex) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        pd.setTitle(ex.title());
+        pd.setType(ex.type());
+        ex.properties().forEach(pd::setProperty);
+        ResponseEntity.BodyBuilder b = ResponseEntity.status(ex.status());
+        Object retry = ex.properties().get("retryAfter");
+        if (retry != null) b.header(HttpHeaders.RETRY_AFTER, String.valueOf(retry));
+        return b.body(pd);
     }
 
     @ExceptionHandler(InvalidTransitionException.class)
@@ -47,6 +59,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 "A conta não pode passar de " + ex.from() + " para " + ex.to() + ". Recarregue a página e tente de novo.");
         pd.setTitle("Estado inválido");
         pd.setType(TYPE_STATE);
+        return pd;
+    }
+
+    private static ProblemDetail validationProblem(List<FieldProblem> errors) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
+                errors.size() == 1 ? "Há 1 campo para corrigir." : "Há " + errors.size() + " campos para corrigir.");
+        pd.setTitle("Dados inválidos");
+        pd.setType(TYPE_VALIDATION);
+        pd.setProperty("errors", errors);
         return pd;
     }
 

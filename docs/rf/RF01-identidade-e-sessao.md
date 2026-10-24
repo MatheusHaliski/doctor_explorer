@@ -234,11 +234,15 @@ flowchart TD
 |---|---|---|
 | Migração | `V1__identidade.sql` (contas, credencial, 2FA, verificação, termos, consentimentos, preferências, `user_key`, `login_audit`) + `schema.sql` | ✅ |
 | Domínio | `AccountStatus`, `SealStatus` (máquinas de estado com `InvalidTransitionException`) | ✅ |
-| Domínio | `UserAccount` (entidade JPA) | ⏳ |
-| Segurança | `SecurityConfig` (CSRF SPA, CSP, Referrer-Policy, troca de id de sessão, rotas públicas) | ✅ |
-| Erros | `ApiExceptionHandler` (Problem Details pt-BR, `422` com `errors[]`) | ✅ |
-| Serviço | `AuthService`, `MfaService`, `PasswordPolicy`, `LoginRateLimiter` | ⏳ |
-| API | `AuthController`, `MeController` | ⏳ |
+| Domínio | `UserAccount`, `Credential`, `EmailVerification`, `TermsAcceptance`, `UserKey`, `UserPreference`, `LoginAudit` (JPA, `ddl-auto: validate`) | ✅ |
+| Segurança | `SecurityConfig` (CSRF SPA, CSP, Referrer-Policy, HSTS, troca de id de sessão, 401 sem sessão), `AbsoluteSessionTimeoutFilter` (24 h), sessão opaca no Valkey (`indexed`), cookie `__Host-de_session` | ✅ |
+| Segredos | `AppSecretProperties` (`DE_APP_SECRET` obrigatório fora de dev/it, HKDF por finalidade), `AesGcm`, `UserKeyService` (DEK por usuário) | ✅ |
+| Erros | `ApiExceptionHandler` (Problem Details pt-BR, `422` com `errors[]`, `429` com `Retry-After`) | ✅ |
+| Serviço | `RegistrationService` (todos os erros juntos, código 30 min / 5 tentativas / reenvio 1 min), `LoginService` (mensagem neutra, Argon2 sempre executado), `PasswordPolicy` (12–128, lista comum, sem e-mail/nome), `LoginRateLimiter` (Valkey, conta e IP) | ✅ |
+| Serviço | `MfaService` (TOTP, códigos de recuperação, sudo) | ⏳ passo 3 |
+| API | `AuthController` (`/csrf`, `/register`, `/login`, `/reactivate`, `/logout`, `/session`), `MeController` (`/me`, `/me/verify-email`, `/me/verify-email/resend`) | ✅ |
+| API | `/login/2fa`, `/me/password`, `/me/sessions`, `/me/mfa/**` | ⏳ passo 3 |
 | Web | telas Login, Cadastro, Segurança (protótipo em `design/prototype`: Sessões e segurança ✅) | 🟡 |
-| Testes | `SchemaConsistencyTest`, `AccountStatusTest`, `SecurityHeadersTest` | ✅ |
-| Testes | `AuthFlowIT`, `MfaIT`, `RateLimitIT` (Testcontainers) | ⏳ |
+| Testes | `SchemaConsistencyTest`, `AccountStatusTest`, `EmailVerificationTest`, `PasswordPolicyTest`, `AppSecretPropertiesTest`, `SecurityHeadersTest` | ✅ |
+| Testes | `AuthFlowIT` com `support/ApiClient` (CSRF + sessão real no Valkey): cadastro → código → ativação → logout → login, 422 agrupado, CSRF, limite por conta, reenvio | ✅ |
+| Testes | `MfaIT` | ⏳ passo 3 |

@@ -1,0 +1,9 @@
+doctor-explorer:
+  app-secret: aXQtb25seS1zZWNyZXQtaXQtb25seS1zZWNyZXQtMTIzNDU2Nzg=
+  session:
+    cookie-name: de_session
+    cookie-secure: false
+
+logging:
+  level:
+    com.doctorexplorer: INFO

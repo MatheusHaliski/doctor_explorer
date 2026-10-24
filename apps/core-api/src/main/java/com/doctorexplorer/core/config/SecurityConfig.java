@@ -3,11 +3,12 @@ package com.doctorexplorer.core.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 
 /**
@@ -20,7 +21,8 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, AppSecretProperties props) throws Exception {
+        AbsoluteSessionTimeoutFilter absoluteTimeout = new AbsoluteSessionTimeoutFilter(props);
         http
             .csrf(csrf -> csrf.spa())
             .headers(headers -> headers
@@ -31,8 +33,10 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 .sessionFixation(fix -> fix.changeSessionId()))
+            .addFilterBefore(absoluteTimeout, SecurityContextHolderFilter.class)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/2fa").permitAll()
+                .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/2fa",
+                        "/api/v1/auth/reactivate", "/api/v1/auth/logout").permitAll()
                 .requestMatchers("/api/v1/ping", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers("/api/v1/institutions", "/api/v1/institutions/*").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("MODERATOR", "ADMIN")
