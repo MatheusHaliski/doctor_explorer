@@ -84,10 +84,11 @@ nos docs de RF.
 | T08 | Protótipo `design/prototype/index.html` + `render.mjs` | 5 | ✅ |
 
 Histórias já implementadas na API (telas só no protótipo): **US01–US06** (cadastro, código, login em
-etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 ⏳), **US22–US24** (consentimentos, seus
-dados/exportação, exclusão com carência e reativação), **US25 parcial** (papéis globais + 2FA obrigatório;
-papéis institucionais com o RF11). Cobertura: `AuthFlowIT`, `MfaIT`, `CredentialingIT`, `AccessMatrixIT`,
-`PrivacyIT`.
+etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 ⏳), **US08–US10** (grupos por RQE, caso
+anonimizado com bloqueio por identificador, parecer; feed segmentado por tipo/especialidade/origem/estado),
+**US22–US24** (consentimentos, seus dados/exportação, exclusão com carência e reativação), **US25 parcial**
+(papéis globais + 2FA obrigatório; papéis institucionais com o RF11). Cobertura: `AuthFlowIT`, `MfaIT`,
+`CredentialingIT`, `AccessMatrixIT`, `PrivacyIT`, `CommunityIT`.
 
 ## ❓ Questões abertas
 

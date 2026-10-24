@@ -44,6 +44,20 @@ public class AccessService {
         return p;
     }
 
+    /** Leitura de grupos e feed: médico verificado, ou moderador/admin da plataforma (para moderar). */
+    public SessionPrincipal requireVerifiedSealOrModerator() {
+        SessionPrincipal p = requireActive();
+        if (credentialing.isVerified(p.userId()) || isPlatformModerator()) return p;
+        throw new ApiProblemException(HttpStatus.FORBIDDEN, "selo-necessario", "Selo CRM necessário",
+                "Esta função fica disponível depois que seu CRM for verificado. Envie CRM/UF e RQE em /api/v1/credentials.");
+    }
+
+    public boolean isPlatformModerator() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_MODERATOR") || a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
     /** Dono do recurso ou 404: não revela se o recurso existe. */
     public void requireOwnerOr404(UUID ownerId) {
         SessionPrincipal p = sessions.require();

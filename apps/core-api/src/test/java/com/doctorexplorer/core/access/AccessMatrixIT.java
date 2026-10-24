@@ -44,6 +44,8 @@ class AccessMatrixIT {
     /** Rotas já implementadas: rótulo da tabela → requisição concreta (método + caminho + corpo). */
     static final Map<String, String[]> ROUTES = Map.of(
             "`POST /credentials`", new String[] {"POST", "/api/v1/credentials", "{\"crmNumber\":\"CRM\",\"crmUf\":\"PR\",\"specialties\":[]}"},
+            "`GET /groups/**`", new String[] {"GET", "/api/v1/groups", null},
+            "`POST /posts`, comentar", new String[] {"POST", "/api/v1/posts", "{\"specialtyCode\":\"UTI\",\"kind\":\"EDUCATION\",\"audience\":\"NETWORK\",\"title\":\"Caso da semana de teste\",\"question\":\"Pergunta guiada\"}"},
             "`GET /admin/audit`", new String[] {"GET", "/api/v1/admin/audit", null},
             "`GET /privacy/dpo/tickets`", new String[] {"GET", "/api/v1/privacy/dpo/tickets", null},
             "`/me/**`", new String[] {"GET", "/api/v1/me", null});
