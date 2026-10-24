@@ -1,5 +1,6 @@
 package com.doctorexplorer.core.config;
 
+import com.doctorexplorer.core.access.MfaRequiredAuthorizationManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -12,9 +13,10 @@ import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 
 /**
- * Camada de QoS: regras de rota centralizadas aqui; checagens de dono/papel/selo ficam no domínio (RF12).
- * CSRF no padrão SPA (cookie XSRF-TOKEN + cabeçalho X-XSRF-TOKEN em toda escrita), CSP fechada,
- * Referrer-Policy no-referrer, troca do id de sessão no login. Nunca JWT no cliente (ADR-008).
+ * Camada de QoS: regras de rota centralizadas aqui (RF12, matriz de acesso); checagens de dono/selo ficam
+ * no domínio ({@code AccessService}). CSRF no padrão SPA (cookie XSRF-TOKEN + cabeçalho X-XSRF-TOKEN em
+ * toda escrita), CSP fechada, Referrer-Policy no-referrer, troca do id de sessão no login. Nunca JWT no
+ * cliente (ADR-008).
  */
 @Configuration
 @EnableWebSecurity
@@ -35,12 +37,16 @@ public class SecurityConfig {
                 .sessionFixation(fix -> fix.changeSessionId()))
             .addFilterBefore(absoluteTimeout, SecurityContextHolderFilter.class)
             .authorizeHttpRequests(auth -> auth
+                // visitante
                 .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/2fa",
                         "/api/v1/auth/reactivate", "/api/v1/auth/logout").permitAll()
                 .requestMatchers("/api/v1/ping", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers("/api/v1/institutions", "/api/v1/institutions/*").permitAll()
-                .requestMatchers("/api/v1/admin/**").hasAnyRole("MODERATOR", "ADMIN")
-                .requestMatchers("/api/v1/privacy/dpo/**").hasRole("DPO")
+                // papéis sensíveis: papel + 2FA ativo. A auditoria também é lida pelo Encarregado (RF13, recorte de privacidade).
+                .requestMatchers("/api/v1/admin/audit/**", "/api/v1/admin/audit").access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN", "DPO"))
+                .requestMatchers("/api/v1/admin/**").access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN"))
+                .requestMatchers("/api/v1/privacy/dpo/**").access(new MfaRequiredAuthorizationManager("DPO"))
+                // o resto exige sessão; selo e estado da conta são checados no domínio
                 .anyRequest().authenticated())
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())

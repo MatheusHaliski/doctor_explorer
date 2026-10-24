@@ -2,6 +2,9 @@ package com.doctorexplorer.core.identity.web;
 
 import com.doctorexplorer.core.common.Hashing;
 import com.doctorexplorer.core.config.AbsoluteSessionTimeoutFilter;
+import com.doctorexplorer.core.credentialing.domain.UserRole;
+import com.doctorexplorer.core.credentialing.repo.UserRoles;
+import com.doctorexplorer.core.identity.service.MfaService;
 import com.doctorexplorer.core.identity.domain.UserAccount;
 import com.doctorexplorer.core.identity.service.RequestContext;
 import com.doctorexplorer.core.web.ApiProblemException;
@@ -10,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +42,7 @@ public class SessionSupport {
     public static final String SUDO_UNTIL = "de.sudo.until";
     public static final String USER_AGENT = "de.session.userAgent";
     public static final String IP_HASH = "de.session.ipHash";
+    public static final String MFA_ENABLED = "de.session.mfaEnabled";
     public static final Duration SUDO_TTL = Duration.ofMinutes(10);
 
     public record SessionView(String handle, Instant createdAt, Instant lastAccessedAt, String userAgent, boolean current) {}
@@ -45,10 +50,14 @@ public class SessionSupport {
     private final SecurityContextRepository contextRepository = new HttpSessionSecurityContextRepository();
     private final FindByIndexNameSessionRepository<?> sessionRepository;
     private final RequestContext ctx;
+    private final UserRoles roles;
+    private final MfaService mfa;
 
-    public SessionSupport(FindByIndexNameSessionRepository<?> sessionRepository, RequestContext ctx) {
+    public SessionSupport(FindByIndexNameSessionRepository<?> sessionRepository, RequestContext ctx, UserRoles roles, MfaService mfa) {
         this.sessionRepository = sessionRepository;
         this.ctx = ctx;
+        this.roles = roles;
+        this.mfa = mfa;
     }
 
     public void authenticate(HttpServletRequest request, HttpServletResponse response, UserAccount account) {
@@ -59,8 +68,11 @@ public class SessionSupport {
         session.setAttribute(AbsoluteSessionTimeoutFilter.STARTED_AT, Instant.now().toEpochMilli());
         session.setAttribute(USER_AGENT, ctx.userAgent(request));
         session.setAttribute(IP_HASH, ctx.ipHash(request));
+        session.setAttribute(MFA_ENABLED, mfa.isEnabled(account.getId()));
         SessionPrincipal principal = new SessionPrincipal(account.getId(), account.getDisplayName(), account.getStatus());
-        Authentication auth = UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of(new SimpleGrantedAuthority("ROLE_PROFESSIONAL")));
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>(List.of(new SimpleGrantedAuthority("ROLE_PROFESSIONAL")));
+        for (UserRole r : roles.findByUserId(account.getId())) authorities.add(new SimpleGrantedAuthority("ROLE_" + r.getRole().name()));
+        Authentication auth = UsernamePasswordAuthenticationToken.authenticated(principal, null, authorities);
         SecurityContext sc = SecurityContextHolder.createEmptyContext();
         sc.setAuthentication(auth);
         SecurityContextHolder.setContext(sc);

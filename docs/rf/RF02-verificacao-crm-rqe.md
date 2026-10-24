@@ -165,8 +165,12 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Migração | `V2__credentialing.sql` | ⏳ |
-| Domínio | `ProfessionalProfile`, `SealStatus`, `CredentialCheck` | ⏳ |
-| Integração | `CfmRegistryAdapter` (ADR-009) | ⏳ |
-| Job | `ReverificationJob` | ⏳ |
-| Testes | `CredentialingIT` com stub WireMock do CFM | ⏳ |
+| Migração | `V2__credenciamento.sql` (`professional_profile`, `specialty_claim`, `credential_check`, `user_role`) | ✅ |
+| Domínio | `ProfessionalProfile` (CRM/UF, selo com máquina de estados, `onIdentityChanged`), `SpecialtyClaim`, `CredentialCheck`, `SealStatus` | ✅ |
+| Serviço | `CredentialingService`: validação completa (422), comparação de nome (sem título/acento), situação e RQE por especialidade, evidência com hash, `MANUAL_REVIEW` após 24 h sem fonte | ✅ |
+| Integração | `CfmRegistryPort` + `HttpCfmRegistry` (contrato a confirmar, ADR-009/Q04) + `FakeCfmRegistry` (dev/it, determinístico por CRM) | ✅ (HTTP real ⚖️) |
+| Integração | fila/outbox com retry e circuit breaker | ⏳ com o barramento (ADR-002) |
+| API | `POST/GET /api/v1/credentials` (exige conta ativa) | ✅ |
+| Job | `ReverificationJob` (02:30, revoga selo se situação ≠ Regular) | ✅ |
+| Moderação | revisão manual pelo moderador (`MANUAL_REVIEW` → `VERIFIED/REJECTED`) | ⏳ |
+| Testes | `CredentialingServiceTest` (nomes), `CredentialingIT` (verificado com RQE parcial, rejeições por nome/situação/inexistente, fonte indisponível, 422 agrupado, 401) | ✅ |

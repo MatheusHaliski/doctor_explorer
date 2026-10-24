@@ -32,7 +32,7 @@ paths:
 |---|---|---|---|---|---|---|---|
 | `GET /institutions` (diretório) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `GET /profiles/{id}` | só PUBLIC_MINIMAL | só PUBLIC_MINIMAL | rede verificada ❌ | ✅ | ✅ | ✅ | ✅ |
-| `POST /credentials` | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `POST /credentials` | ❌ | ❌ | ✅ | ✅ | ✅ | — | — |
 | `GET /groups/**` | ❌ | ❌ | ❌ | ✅ (membro) | ❌ | ✅ | ❌ |
 | `POST /posts`, comentar | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Chat / vídeo | ❌ | ❌ | ❌ | ✅ | ✅ (com selo) | ❌ | ❌ |
@@ -43,6 +43,10 @@ paths:
 | `POST /admin/moderation/**` | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | `GET /privacy/dpo/tickets` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | `/me/**` | ❌ | ✅ (parcial) | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Legenda: ✅ permitido · ❌ negado (`401` sem sessão, `403` sem papel/selo, `404` recurso de outro dono) ·
+— não se aplica (conta interna não faz esse fluxo). `AccessMatrixIT` lê esta tabela e exercita as linhas
+cujas rotas já existem; "gestor" entra com o RF11.
 
 ## Máquina de estados (decisão de acesso)
 
@@ -187,7 +191,10 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Config | `SecurityConfig`: rota × papel global (`/admin/**` → MODERATOR/ADMIN, `/privacy/dpo/**` → DPO, rotas públicas de auth/diretório, resto autenticado), 401 sem sessão, 403 sem papel | 🟡 (papéis globais ✅; papéis institucionais e selo ⏳) |
-| Domínio | `AccessService`, `SealPolicy`, `InstitutionTreePolicy`, `MfaRequiredPolicy` | ⏳ |
+| Migração | `V2` (`user_role`: MODERATOR, ADMIN, DPO, TECHNICAL_DIRECTOR) | ✅ |
+| Config | `SecurityConfig`: rota × papel global (`/admin/audit` → MODERATOR/ADMIN/DPO **+ 2FA**, demais `/admin/**` → MODERATOR/ADMIN **+ 2FA**, `/privacy/dpo/**` → DPO **+ 2FA** via `MfaRequiredAuthorizationManager`; rotas públicas de auth/diretório; resto autenticado), 401 sem sessão, 403 sem papel | ✅ |
+| Domínio | `AccessService` (`requireActive`, `requireVerifiedSeal`, `requireOwnerOr404`) | ✅ |
+| Domínio | `InstitutionTreePolicy` (papéis institucionais, herança rede → hospital → unidade) | ⏳ RF11 |
 | Testes | `SecurityHeadersTest` (401 sem sessão) | ✅ |
-| Testes | `AccessMatrixIT` (lê a tabela deste doc), `InstitutionTreePolicyTest` | ⏳ |
+| Testes | `AccessMatrixIT` (lê a tabela deste doc; rotas implementadas × visitante/pendente/ativo/verificado/moderador/DPO) | ✅ |
+| Testes | `InstitutionTreePolicyTest` | ⏳ RF11 |

@@ -1,6 +1,9 @@
 package com.doctorexplorer.core.support;
 
+import com.doctorexplorer.core.identity.service.LoggingMailer;
 import jakarta.servlet.http.Cookie;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.MediaType;
@@ -40,6 +43,14 @@ public class ApiClient {
                 {"email":"%s","displayName":"Dra. Ana Ribeiro","birthDate":"1990-05-10","password":"%s",
                  "acceptTerms":true,"acceptPrivacy":true,"termsVersion":"2026-10-24","privacyVersion":"2026-10-24"}
                 """.formatted(email, password));
+    }
+
+    /** Confirma o e-mail com o último código enviado pelo mailer de teste; a conta passa a ACTIVE. */
+    public MockHttpServletResponse activateEmail(LoggingMailer mailer) throws Exception {
+        var sent = mailer.outbox();
+        Matcher m = Pattern.compile("Seu código é (\\d{6})").matcher(sent.get(sent.size() - 1).body());
+        if (!m.find()) throw new IllegalStateException("nenhum código de verificação no outbox");
+        return post("/api/v1/me/verify-email", "{\"code\":\"" + m.group(1) + "\"}");
     }
 
     public MockHttpServletResponse login(String email, String password) throws Exception {

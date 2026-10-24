@@ -87,6 +87,7 @@ public class MeSecurityController {
     Map<String, Object> confirm(@RequestBody CodeRequest req, HttpServletRequest request) {
         sessions.requireSudo(request);
         List<String> codes = mfa.confirmSetup(sessions.require().userId(), req.code());
+        request.getSession(true).setAttribute(SessionSupport.MFA_ENABLED, true); // já vale nesta sessão
         return Map.of("enabled", true, "recoveryCodes", codes);
     }
 
@@ -102,6 +103,7 @@ public class MeSecurityController {
     ResponseEntity<Void> disable(HttpServletRequest request) {
         sessions.requireSudo(request);
         mfa.disable(sessions.require().userId());
+        request.getSession(true).setAttribute(SessionSupport.MFA_ENABLED, false);
         return ResponseEntity.noContent().build();
     }
 

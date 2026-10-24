@@ -3,6 +3,8 @@ package com.doctorexplorer.core.identity.web;
 import com.doctorexplorer.core.identity.domain.UserAccount;
 import com.doctorexplorer.core.identity.repo.UserAccounts;
 import com.doctorexplorer.core.identity.service.RegistrationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,9 +39,10 @@ public class MeController {
     }
 
     @PostMapping("/verify-email")
-    Map<String, Object> verifyEmail(@RequestBody VerifyEmailRequest req) {
+    Map<String, Object> verifyEmail(@RequestBody VerifyEmailRequest req, HttpServletRequest request, HttpServletResponse response) {
         SessionPrincipal p = sessions.require();
         UserAccount a = registration.verifyEmail(p.userId(), req.code());
+        sessions.authenticate(request, response, a); // o principal na sessão passa a refletir ACTIVE
         return Map.of("status", a.getStatus().name());
     }
 
