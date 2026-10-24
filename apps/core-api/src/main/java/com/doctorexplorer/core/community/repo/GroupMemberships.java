@@ -10,4 +10,6 @@ public interface GroupMemberships extends JpaRepository<GroupMembership, GroupMe
     List<GroupMembership> findByUserIdAndState(UUID userId, GroupMembership.State state);
 
     List<GroupMembership> findByGroupIdAndState(UUID groupId, GroupMembership.State state);
+
+    List<GroupMembership> findByState(GroupMembership.State state);
 }

@@ -123,6 +123,9 @@ class DirectoryIT {
         ApiClient outro = verifiedDoctor("outro");
         assertThat(medico.post("/api/v1/institutions/" + unitId + "/members/" + medicoId, null).getStatus()).isEqualTo(403);
         assertThat(outro.get("/api/v1/institutions/" + unitId + "/members").getStatus()).isEqualTo(404);
+        // gestão lista nome, papel, estado e desde quando (o web monta a tela de gestão com isso)
+        assertThat(gestor.get("/api/v1/institutions/" + unitId + "/members").getContentAsString())
+                .contains("\"name\":\"Dra. Ana Ribeiro\"").contains("\"state\":\"ACTIVE\"").contains("\"since\":");
 
         // papel nunca acima do de quem concede
         assertThat(gestor.put("/api/v1/institutions/" + unitId + "/members/" + medicoId + "/role", "{\"role\":\"UNIT_MANAGER\"}").getContentAsString()).contains("UNIT_MANAGER");

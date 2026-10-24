@@ -70,7 +70,9 @@ pnpm check                                     # typecheck + eslint + vitest + n
 
 Telas: `/login` (senha → 2FA → reativação), `/cadastro`, `/verificar-email`, `/feed` (quatro eixos na
 URL), `/casos/novo`, `/casos/[id]`, `/grupos`, `/perfil` (+ selo CRM/RQE), `/perfil/[id]`,
-`/privacidade`, `/seguranca`, `/instituicoes`, `/instituicoes/[id]`.
+`/privacidade`, `/seguranca`, `/instituicoes`, `/instituicoes/nova`, `/instituicoes/[id]`, `/instituicoes/[id]/gestao`
+(gestores), `/moderacao` (moderadores com 2FA). No perfil `dev` da API, `POST /api/v1/dev/roles/{role}` e
+`POST /api/v1/dev/credentials/manual-review` ajudam a testar papéis e a fila sem mexer no banco.
 
 ## CI
 

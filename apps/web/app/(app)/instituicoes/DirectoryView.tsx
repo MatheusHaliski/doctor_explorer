@@ -60,8 +60,15 @@ export function DirectoryView() {
 
   return (
     <>
-      <h1>Instituições</h1>
-      <p className="lead">Hospitais, redes e unidades com CNPJ e CNES conferidos. Médicos verificados pedem vínculo; gestores aceitam.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1>Instituições</h1>
+          <p className="lead">Hospitais, redes e unidades com CNPJ e CNES conferidos. Médicos verificados pedem vínculo; gestores aceitam.</p>
+        </div>
+        <Link className="btn" href="/instituicoes/nova">
+          Cadastrar instituição
+        </Link>
+      </div>
       <form onSubmit={search} noValidate className="card">
         <div className="grid" style={{ gridTemplateColumns: "2fr 1fr 1fr" }}>
           <Field id="q" label="Nome ou cidade">

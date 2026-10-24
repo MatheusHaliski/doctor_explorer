@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import { KINDS, ORIGINS, SPECIALTIES, STATES, formatDateTime, initials } from "@/lib/domain";
 import type { Post } from "@/components/PostCard";
+import { isModerator, useSession } from "@/components/session-context";
 import { Button, Field, Loading, Notice, ProblemAlert, useToast } from "@/components/ui";
 
 type Comment = { id: string; authorId: string; authorName: string; body: string; opinion: boolean; createdAt: string };
@@ -19,6 +20,7 @@ const LABELS: Record<string, string> = { complaint: "Queixa e contexto", history
 /** RF04 · caso com pareceres; resolver só pelo autor; "Registrar no prontuário" só para o autor (RF08, em breve). */
 export function CaseView({ id }: { id: string }) {
   const router = useRouter();
+  const session = useSession();
   const [c, setC] = useState<Case | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [body, setBody] = useState("");
@@ -66,6 +68,18 @@ export function CaseView({ id }: { id: string }) {
     }
   }
 
+  async function hide() {
+    const reason = prompt("Motivo da ocultação (fica registrado):", "moderação");
+    if (reason === null) return;
+    try {
+      await api.post(`/api/v1/admin/posts/${id}/hide`, { reason });
+      toast.show("Publicação ocultada.");
+      router.replace("/feed");
+    } catch (err) {
+      setError(err);
+    }
+  }
+
   if (error && !c) return <ProblemAlert error={error} />;
   if (!c) return <Loading what="Carregando o caso" />;
   const author = c.canRecordInEhr;
@@ -107,6 +121,13 @@ export function CaseView({ id }: { id: string }) {
             {c.tags.map((t) => (
               <span key={t}>#{t}</span>
             ))}
+          </div>
+        )}
+        {isModerator(session) && !author && (
+          <div className="toolbar mt-4">
+            <Button type="button" variant="danger" onClick={hide}>
+              Ocultar (moderação)
+            </Button>
           </div>
         )}
         {author && (

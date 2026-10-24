@@ -82,10 +82,10 @@ nos docs de RF.
 | T06 | `packages/tokens`: DTCG → Style Dictionary → `tokens.css`/`tokens.ts` + `scripts/wcag_contrast.py` | 5 | 🟡 (tokens.css + contraste ✅; Style Dictionary ⏳) |
 | T07 | Ícones SVGR em `packages/ui-web` a partir de `design/icons` | 3 | 🟡 (SVGs ✅; SVGR ⏳) |
 | T08 | Protótipo `design/prototype/index.html` + `render.mjs` | 5 | ✅ |
-| T09 | `apps/web`: Next.js 16 consumindo a core-api (login, cadastro, feed, caso, grupos, perfil, privacidade, segurança, instituições) + job `web` no CI | 13 | ✅ (gestão institucional e moderação na web ⏳) |
+| T09 | `apps/web`: Next.js 16 consumindo a core-api (login, cadastro, feed, caso, grupos, perfil, privacidade, segurança, instituições, gestão institucional, moderação) + jobs `web` e `web-e2e` no CI | 13 | ✅ |
 
 Histórias já implementadas na API **e na web real (`apps/web`)**: **US01–US06** (cadastro, código, login em
-etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 ⏳), **US08–US10** (grupos por RQE, caso
+etapas com TOTP, sessões, selo CRM/RQE; revisão manual US06 na fila `/moderacao`), **US08–US10** (grupos por RQE, caso
 anonimizado com bloqueio por identificador, parecer; feed segmentado por tipo/especialidade/origem/estado),
 **US07** (perfil com visibilidade e publicidade médica), **US22–US24** (consentimentos, seus
 dados/exportação, exclusão com carência e reativação), **US25** (papéis globais + 2FA obrigatório; papéis

@@ -118,9 +118,13 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Quem está logado e com quais papéis globais (sem ROLE_, ex.: PROFESSIONAL, MODERATOR). O web monta a navegação com isso. */
     @GetMapping("/session")
     Map<String, Object> session() {
         SessionPrincipal p = sessions.require();
-        return Map.of("userId", p.userId(), "displayName", p.displayName(), "status", p.status().name());
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        java.util.List<String> roles = auth == null ? java.util.List.of() : auth.getAuthorities().stream()
+                .map(a -> a.getAuthority()).filter(a -> a.startsWith("ROLE_")).map(a -> a.substring(5)).sorted().toList();
+        return Map.of("userId", p.userId(), "displayName", p.displayName(), "status", p.status().name(), "roles", roles);
     }
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { SessionProvider } from "@/components/session-context";
 import { Shell } from "@/components/Shell";
 import { getSession, serverGet } from "@/lib/server-api";
 
@@ -10,8 +11,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (session.status === "PENDING_VERIFICATION") redirect("/verificar-email");
   const cred = await serverGet<{ seal: string }>("/api/v1/credentials");
   return (
-    <Shell user={session} seal={cred.data?.seal ?? "NONE"}>
-      {children}
-    </Shell>
+    <SessionProvider value={{ ...session, roles: session.roles ?? [] }}>
+      <Shell user={session} seal={cred.data?.seal ?? "NONE"}>
+        {children}
+      </Shell>
+    </SessionProvider>
   );
 }

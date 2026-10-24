@@ -3,7 +3,12 @@ import { cookies } from "next/headers";
 /** Chamadas feitas no servidor (Server Components) repassando o cookie de sessão do navegador para a core-api. */
 const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:8080";
 
-export type Session = { userId: string; displayName: string; status: "PENDING_VERIFICATION" | "ACTIVE" | "SUSPENDED" | "PENDING_DELETION" | "ANONYMOUS_LGPD_DELETED" };
+export type Session = {
+  userId: string;
+  displayName: string;
+  status: "PENDING_VERIFICATION" | "ACTIVE" | "SUSPENDED" | "PENDING_DELETION" | "ANONYMOUS_LGPD_DELETED";
+  roles: string[]; // papéis globais sem o prefixo ROLE_ (PROFESSIONAL, MODERATOR, ADMIN, DPO…)
+};
 
 export async function serverGet<T>(path: string): Promise<{ status: number; data: T | null }> {
   const jar = await cookies();

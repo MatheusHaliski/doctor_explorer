@@ -12,7 +12,8 @@ type Institution = {
   units: Array<{ id: string; name: string; type: string }>; clinicalStaffCount: number; myRole?: string;
 };
 type Staff = { userId: string; name: string; role: string; since: string };
-const ROLES: Record<string, string> = { NETWORK_ADMIN: "Admin da rede", HOSPITAL_ADMIN: "Gestor", CLINICAL_DIRECTOR: "Diretor clínico", UNIT_COORDINATOR: "Coordenador", STAFF_PHYSICIAN: "Corpo clínico", NONE: "Sem vínculo" };
+const ROLES: Record<string, string> = { NETWORK_ADMIN: "Admin da rede", HOSPITAL_ADMIN: "Gestor do hospital", CLINICAL_DIRECTOR: "Diretor clínico", UNIT_MANAGER: "Gestor da unidade", AUDITOR: "Auditor", STAFF_PHYSICIAN: "Corpo clínico", NONE: "Sem vínculo" };
+const MANAGER = new Set(["NETWORK_ADMIN", "HOSPITAL_ADMIN", "CLINICAL_DIRECTOR", "UNIT_MANAGER"]);
 
 /** RF11 · instituição: unidades, corpo clínico verificado e pedido de vínculo. */
 export function InstitutionView({ id }: { id: string }) {
@@ -60,8 +61,18 @@ export function InstitutionView({ id }: { id: string }) {
           <span className="text-sm text-text-3">Seu vínculo: {ROLES[i.myRole ?? "NONE"] ?? i.myRole}</span>
           {(i.myRole ?? "NONE") === "NONE" && (
             <Button type="button" variant="primary" loading={busy} onClick={join}>
-              Pedir vínculo
+              Pedir vínculo / aceitar convite
             </Button>
+          )}
+          {MANAGER.has(i.myRole ?? "") && (
+            <>
+              <Link className="btn sm" href={`/instituicoes/${id}/gestao`}>
+                Gestão de vínculos
+              </Link>
+              <Link className="btn sm" href={`/instituicoes/nova?parentId=${id}`}>
+                Nova unidade
+              </Link>
+            </>
           )}
         </div>
         <ProblemAlert error={error} />

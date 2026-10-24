@@ -7,10 +7,10 @@ import { api } from "@/lib/api";
 import { isDark, setDark, subscribeTheme } from "@/lib/theme";
 import { Seal } from "./Seal";
 
-type Props = { user: { userId: string; displayName: string; status: string }; seal: string; children: ReactNode };
+type Props = { user: { userId: string; displayName: string; status: string; roles?: string[] }; seal: string; children: ReactNode };
 
 /* eslint-disable @next/next/no-img-element */
-const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; soon?: boolean }> = [
+const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; soon?: boolean; mod?: boolean }> = [
   { href: "/feed", label: "Início", icon: "/icons/nav/inicio.svg" },
   { href: "/feed?kind=CASE", label: "Casos clínicos", icon: "/icons/nav/casos-clinicos.svg" },
   { href: "/grupos", label: "Grupos", icon: "/icons/nav/grupos.svg" },
@@ -22,6 +22,8 @@ const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; s
   { href: "/exames", label: "Exames", icon: "/icons/nav/exames.svg", soon: true },
   { sep: "Instituição" },
   { href: "/instituicoes", label: "Instituições", icon: "/icons/nav/instituicoes.svg" },
+  { sep: "Moderação", mod: true },
+  { href: "/moderacao", label: "Fila de moderação", icon: "/icons/nav/administracao.svg", mod: true },
   { sep: "Conta" },
   { href: "/perfil", label: "Perfil", icon: "/icons/topbar/perfil.svg" },
   { href: "/privacidade", label: "Privacidade", icon: "/icons/nav/privacidade.svg" },
@@ -45,6 +47,8 @@ export function Shell({ user, seal, children }: Props) {
     }
   }
 
+  const moderator = (user.roles ?? []).some((r) => r === "MODERATOR" || r === "ADMIN");
+  const nav = NAV.filter((n) => !n.mod || moderator);
   const current = (href: string) => (href === "/feed" ? pathname === "/feed" : pathname.startsWith(href.split("?")[0]!));
 
   return (
@@ -60,7 +64,7 @@ export function Shell({ user, seal, children }: Props) {
             Doctor Explorer
           </Link>
           <nav className="nav">
-            {NAV.map((n, i) =>
+            {nav.map((n, i) =>
               n.sep ? (
                 <div className="sep" key={i}>
                   {n.sep}

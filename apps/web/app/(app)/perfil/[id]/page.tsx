@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InviteToInstitution } from "@/components/InviteToInstitution";
 import { Seal } from "@/components/Seal";
 import { SPECIALTIES, VISIBILITIES, initials } from "@/lib/domain";
 import { serverGet } from "@/lib/server-api";
@@ -55,6 +56,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           </>
         )}
       </article>
+      <InviteToInstitution userId={p.id} />
     </div>
   );
 }

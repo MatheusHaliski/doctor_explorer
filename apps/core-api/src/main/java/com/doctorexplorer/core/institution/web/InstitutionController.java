@@ -127,7 +127,9 @@ public class InstitutionController {
         if (!r.canManageMembers() && !r.canViewAudit()) {
             throw new ApiProblemException(HttpStatus.FORBIDDEN, "sem-papel", "Sem permissão de gestão", "Seu papel " + r.name() + " não vê a gestão de membros.");
         }
-        return Map.of("members", directory.membershipsAll(id).stream().map(m -> Map.of("userId", m.getUserId(), "role", m.getRole().name(), "state", m.getState().name())).toList());
+        return Map.of("members", directory.membershipsAll(id).stream().map(m -> Map.of("userId", m.getUserId(),
+                "name", accounts.findById(m.getUserId()).map(a -> a.getDisplayName()).orElse("Conta excluída"),
+                "role", m.getRole().name(), "state", m.getState().name(), "since", m.getSince().toString())).toList());
     }
 
     @PostMapping("/{id}/members/{userId}")
