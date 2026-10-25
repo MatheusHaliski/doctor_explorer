@@ -23,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
-      - name: Ferramentas da anonimização de mídia (RF05: OCR e HEIC)
+      - name: "Ferramentas da anonimização de mídia (RF05: OCR e HEIC)"
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-por libheif-examples libheif-plugin-libde265 libheif-plugin-x265
@@ -160,7 +160,7 @@ jobs:
           docker compose up -d
           for i in $(seq 1 60); do docker compose ps cassandra --format '{{.Status}}' | grep -q healthy && break; sleep 5; done
           docker compose ps
-      - name: Ferramentas da anonimização de mídia (RF05: OCR e HEIC)
+      - name: "Ferramentas da anonimização de mídia (RF05: OCR e HEIC)"
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-por libheif-examples libheif-plugin-libde265 libheif-plugin-x265
