@@ -78,6 +78,10 @@ doctor-explorer:
     path-style: ${DE_S3_PATH_STYLE:false}
     create-buckets: false
     server-side-encryption: true
+  # RF08 · clinical-api na rede interna (o navegador nunca fala com ela direto)
+  clinical:
+    base-url: ${DE_CLINICAL_BASE_URL:http://localhost:8081}
+    timeout: 15s
   # RF05 · anonimização de mídia. Tesseract e libheif vêm da imagem base (infra/images/core-api-base).
   media:
     max-image-bytes: 20971520

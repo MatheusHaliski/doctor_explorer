@@ -72,3 +72,9 @@ export function formatDateTime(iso: string): string {
   if (!iso || iso === "null") return "—";
   return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
+
+/** Data de calendário (AAAA-MM-DD) em pt-BR, sem passar por fuso horário. */
+export function formatDate(isoDate: string): string {
+  const [y, m, d] = isoDate.slice(0, 10).split("-");
+  return y && m && d ? `${d}/${m}/${y}` : "—";
+}

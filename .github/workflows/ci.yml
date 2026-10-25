@@ -40,6 +40,33 @@ jobs:
           name: sbom-core-api
           path: apps/core-api/target/bom.json
 
+  clinical:
+    name: clinical-api · JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [21, 25]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: mvn verify (unitários + EhrIT e FhirValidationIT com PostgreSQL real)
+        working-directory: apps/clinical-api
+        run: mvn -B -ntp verify
+      - name: SBOM (CycloneDX)
+        if: matrix.java == 21
+        working-directory: apps/clinical-api
+        run: mvn -B -ntp -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+      - uses: actions/upload-artifact@v4
+        if: matrix.java == 21
+        with:
+          name: sbom-clinical-api
+          path: apps/clinical-api/target/bom.json
+
   docs-por-rf:
     name: Docs por RF
     runs-on: ubuntu-latest
@@ -142,6 +169,11 @@ jobs:
         run: |
           mvn -B -ntp -DskipTests package
           SPRING_PROFILES_ACTIVE=dev nohup java -jar target/core-api-*.jar > "$RUNNER_TEMP/api.log" 2>&1 &
+      - name: clinical-api (perfil dev) em segundo plano
+        working-directory: apps/clinical-api
+        run: |
+          mvn -B -ntp -DskipTests package
+          SPRING_PROFILES_ACTIVE=dev nohup java -jar target/clinical-api-*.jar > "$RUNNER_TEMP/clinical.log" 2>&1 &
       - name: web (next build + start) em segundo plano
         working-directory: apps/web
         env:
@@ -154,8 +186,8 @@ jobs:
         run: npm install playwright@1.56.1 && npx playwright install --with-deps chromium
       - name: Esperar API e web
         run: |
-          for i in $(seq 1 60); do curl -sf http://localhost:8080/api/v1/ping >/dev/null && curl -sf http://localhost:3000/login >/dev/null && exit 0; sleep 2; done
-          echo "API ou web não subiram"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/web.log"; exit 1
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/api/v1/ping >/dev/null && curl -sf http://localhost:8081/actuator/health >/dev/null && curl -sf http://localhost:3000/login >/dev/null && exit 0; sleep 2; done
+          echo "API, clinical-api ou web não subiram"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/clinical.log" "$RUNNER_TEMP/web.log"; exit 1
       - name: Fluxo ponta a ponta
         working-directory: apps/web
         env:
@@ -170,6 +202,7 @@ jobs:
           path: |
             ${{ runner.temp }}/shots
             ${{ runner.temp }}/api.log
+            ${{ runner.temp }}/clinical.log
             ${{ runner.temp }}/web.log
 
   codeql:
@@ -193,10 +226,11 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-      - name: Build Java para o CodeQL
+      - name: Build Java para o CodeQL (core-api e clinical-api)
         if: matrix.language == 'java-kotlin'
-        working-directory: apps/core-api
-        run: mvn -B -ntp -DskipTests package
+        run: |
+          (cd apps/core-api && mvn -B -ntp -DskipTests package)
+          (cd apps/clinical-api && mvn -B -ntp -DskipTests package)
       - uses: github/codeql-action/autobuild@v3
         if: matrix.language != 'java-kotlin'
       - uses: github/codeql-action/analyze@v3
@@ -226,19 +260,26 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - name: Imagem com Jib (sem Dockerfile)
-        working-directory: apps/core-api
-        run: mvn -B -ntp -DskipTests compile jib:dockerBuild -Djib.to.image=core-api:ci
+      - name: Imagens com Jib (sem Dockerfile)
+        run: |
+          (cd apps/core-api && mvn -B -ntp -DskipTests compile jib:dockerBuild -Djib.to.image=core-api:ci)
+          (cd apps/clinical-api && mvn -B -ntp -DskipTests compile jib:dockerBuild -Djib.to.image=clinical-api:ci)
       - name: Instalar Trivy (script oficial)
         run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-      - name: Trivy na imagem
-        run: trivy image --format sarif --output trivy-image.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 core-api:ci
+      - name: Trivy nas imagens
+        run: |
+          trivy image --format sarif --output trivy-image.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 core-api:ci
+          trivy image --format sarif --output trivy-image-clinical.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 clinical-api:ci
       - name: Trivy no repositório
         run: trivy fs --format sarif --output trivy-fs.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 .
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-clinical.sarif
+          category: trivy-image-clinical
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-fs.sarif

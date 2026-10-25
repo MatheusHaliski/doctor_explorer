@@ -17,7 +17,7 @@ const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; s
   { href: "/mensagens", label: "Mensagens", icon: "/icons/nav/mensagens.svg", soon: true },
   { href: "/chamadas", label: "Chamadas", icon: "/icons/nav/chamadas.svg", soon: true },
   { sep: "Clínico" },
-  { href: "/prontuario", label: "Prontuário", icon: "/icons/nav/prontuario.svg", soon: true },
+  { href: "/prontuario", label: "Prontuário", icon: "/icons/nav/prontuario.svg" },
   { href: "/prescricoes", label: "Prescrições", icon: "/icons/nav/prescricao.svg", soon: true },
   { href: "/exames", label: "Exames", icon: "/icons/nav/exames.svg", soon: true },
   { sep: "Instituição" },

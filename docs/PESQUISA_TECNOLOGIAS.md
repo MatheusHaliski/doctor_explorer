@@ -5,14 +5,14 @@ decisão, alternativas, consequências, status. Status possíveis: **proposto ·
 
 | ADR | Decisão | Status |
 |---|---|---|
-| [ADR-001](#adr-001--monólito-modular-com-clinical-api-separada) | Monólito modular + `clinical-api` separada | proposto |
+| [ADR-001](#adr-001--monólito-modular-com-clinical-api-separada) | Monólito modular + `clinical-api` separada | aceito |
 | [ADR-002](#adr-002--barramento-de-eventos-por-instituição) | Barramento de eventos por instituição (outbox → streams) | proposto |
-| [ADR-003](#adr-003--openehr-como-modelo-interno-fhir-como-fachada) | openEHR interno, FHIR R4 como fachada | proposto |
-| [ADR-004](#adr-004--hapi-fhir) | HAPI FHIR | proposto |
+| [ADR-003](#adr-003--openehr-como-modelo-interno-fhir-como-fachada) | openEHR interno, FHIR R4 como fachada | aceito (MVP simplificado) |
+| [ADR-004](#adr-004--hapi-fhir) | HAPI FHIR | aceito |
 | [ADR-005](#adr-005--servidor-de-terminologia) | Servidor de terminologia (CID-10, LOINC, SNOMED CT) | proposto |
 | [ADR-006](#adr-006--webrtc-com-sfu-e-e2ee-sframe) | WebRTC com SFU + E2EE SFrame | proposto |
 | [ADR-007](#adr-007--assinatura-icp-brasil-em-nuvem) | Assinatura ICP-Brasil via provedor em nuvem | proposto |
-| [ADR-008](#adr-008--sessão-opaca-no-cliente-token-interno-curto) | Sessão opaca no cliente; token interno de 60 s entre serviços | proposto |
+| [ADR-008](#adr-008--sessão-opaca-no-cliente-token-interno-curto) | Sessão opaca no cliente; token interno de 60 s entre serviços | aceito |
 | [ADR-009](#adr-009--fonte-de-verificação-de-crmrqe) | Fonte de verificação de CRM/RQE | proposto |
 | [ADR-010](#adr-010--mls-rfc-9420-para-chat-e2ee) | MLS (RFC 9420) para chat E2EE | proposto |
 | [ADR-011](#adr-011--infraestrutura-gerenciada-na-aws-sa-east-1) | Infraestrutura gerenciada na AWS sa-east-1 | proposto |
@@ -62,10 +62,22 @@ openEHR (sem interoperabilidade com RNDS).
 **Consequências.** Camada de mapeamento com testes de ida e volta; EHRbase avaliado como repositório
 openEHR pronto (**⚖️ licença e operação**).
 
+**Como ficou no MVP (RF08).** Uma Composition por nota SOAP em tabela própria (`soap_composition`), com a
+semântica do arquétipo de evolução: linhagem de versões, autor, encontro (contexto), quatro seções e
+diagnósticos CID-10/SNOMED. Sem EHRbase por enquanto; o mapeamento para FHIR fica em `FhirMapper` e é validado
+no CI. A troca para arquétipos do CKM entra quando o PEP crescer além da nota de evolução.
+
 ## ADR-004 · HAPI FHIR
 
 **Decisão.** Biblioteca HAPI FHIR (estruturas R4 + validador) dentro da `clinical-api`, sem o servidor JPA
 completo. Validação contra perfis BR no CI.
+
+**Como ficou (RF08).** HAPI FHIR 8.12.1 (`structures-r4`, `validation`, `validation-resources-r4`). A fachada
+`/fhir/r4` é só leitura (Patient, Practitioner, Encounter, Composition, Condition, Provenance e buscas
+`Composition?patient=`, `Condition?encounter=`, `Provenance?target=`). `FhirValidationIT` valida cada resposta
+com o `FhirInstanceValidator` contra os perfis base R4 (zero erros). Os perfis BR da RNDS e o CID-10 como
+CodeSystem carregado no validador ficam para quando houver integração com a RNDS (hoje o sistema
+`BRCID10` aparece como desconhecido, o que é aviso e não erro).
 
 ## ADR-005 · Servidor de terminologia
 
@@ -104,6 +116,15 @@ clara em falha.
 **Decisão.** Cliente: sessão opaca (Spring Session no Valkey). Entre `edge` e serviços: token interno
 assinado de **60 s** com escopo da requisição (não é revogável, mas vive só 60 s e nunca sai da rede
 interna). 2FA e sudo ficam na sessão.
+
+**Como ficou (RF08).** A core-api é a porta: `/api/v1/clinical/**` exige a sessão (e o CSRF nas escritas),
+emite o token e repassa a chamada à `clinical-api` pela rede interna, sem ler o corpo. Formato próprio e mínimo
+(não é JWT): `v1.<base64url(json)>.<base64url(Ed25519)>`, com `iss`, `aud`, `sub`, nome, CRM/UF, selo,
+`sudoUntil`, `mfa`, `write` (só verdadeiro em método de escrita, depois do CSRF), `iat`, `exp` (+60 s) e `jti`. A
+chave deriva do segredo da core-api; a pública fica em `GET /api/v1/internal/public-key`. A `clinical-api`
+confere assinatura, público, validade e relógio, e usa o mesmo token para devolver a auditoria em
+`POST /api/v1/internal/audit` (só ações `clinical.*`, ator sempre o do token). Em produção, mTLS entre os
+serviços e `/api/v1/internal/**` fora do balanceador público.
 
 ## ADR-009 · Fonte de verificação de CRM/RQE
 

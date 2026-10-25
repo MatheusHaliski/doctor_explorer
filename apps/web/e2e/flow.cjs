@@ -1,7 +1,7 @@
 /*
  * Teste ponta a ponta no navegador: web real (Next) + core-api (perfil dev) + PostgreSQL + Valkey.
  * Login de verdade, sem mock: cadastro → código do mailer dev (lido do log da API) → selo CRM/RQE na fonte
- * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → feed por eixos → LGPD → sudo →
+ * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → feed por eixos → LGPD → sudo →
  * tema escuro → mobile → logout → login.
  *
  * Uso: API_LOG=<log da core-api> BASE=http://localhost:3000 [SHOTS=dir] [PLAYWRIGHT_ROOT=<node_modules>] node e2e/flow.cjs
@@ -175,6 +175,40 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await caseImg.waitFor();
   ok("imagem anonimizada aparece no caso", await caseImg.evaluate((img) => img.complete && img.naturalWidth > 0));
   await shot("07-caso");
+
+  // RF08: "Registrar no prontuário" a partir da discussão → paciente no cofre → SOAP → assinatura com sudo → correção
+  await page.getByRole("link", { name: "Registrar no prontuário" }).click();
+  await page.waitForURL(/\/prontuario\/nova\?post=/);
+  await page.getByRole("button", { name: "Novo paciente" }).click();
+  await page.fill("#name", `Helena Duarte ${n}`);
+  await page.fill("#birthDate", "1964-03-02");
+  await page.fill("#cpf", "529.982.247-25");
+  await page.getByRole("button", { name: "Cadastrar e registrar" }).click();
+  await page.waitForURL(/\/prontuario\/notas\/[0-9a-f-]{36}$/);
+  await page.getByRole("heading", { name: /^Nota SOAP/ }).waitFor();
+  ok("nota aberta vinculada à discussão", (await page.getByRole("link", { name: "discussão vinculada" }).count()) === 1);
+  await page.fill("#subjective", "Dispneia há 3 dias, febre 38,5 °C.");
+  await page.fill("#objective", "SatO2 91%, crepitações em base direita.");
+  await page.fill("#assessment", "Pneumonia comunitária.");
+  await page.fill("#cid10-q", "J18.9");
+  await page.getByRole("button", { name: /^J18\.9 · / }).click();
+  await page.fill("#plan", "Amoxicilina-clavulanato 7 dias; retorno em 48 h.");
+  await page.getByText(/^Rascunho salvo/).waitFor({ timeout: 15_000 });
+  ok("rascunho salvo sozinho em até 5 s", true);
+  await shot("07b-soap-rascunho");
+  await page.getByRole("button", { name: "Assinar nota" }).click();
+  await page.getByRole("heading", { name: "Confirme sua identidade para assinar" }).waitFor();
+  await page.fill("#sudo-password", password);
+  await page.getByRole("button", { name: "Confirmar e assinar" }).click();
+  await page.getByText("Integridade conferida agora").waitFor();
+  ok("nota assinada com sudo e integridade conferida", (await page.locator("#plan").getAttribute("readonly")) !== null);
+  await page.getByRole("button", { name: "Corrigir (nova versão)" }).click();
+  await page.fill("#reason", "Dose ajustada após resultado da cultura");
+  await page.getByRole("button", { name: "Abrir nova versão" }).click();
+  await page.getByRole("heading", { name: /versão 2/ }).waitFor();
+  ok("correção abre a versão 2 com o motivo", (await page.getByText("Motivo da correção: Dose ajustada").count()) === 1);
+  ok("versão assinada continua listada", (await page.getByRole("link", { name: "Versão 1" }).count()) === 1);
+  await shot("07c-soap-versao-2");
 
   // feed segmentado
   await page.goto(BASE + "/feed");

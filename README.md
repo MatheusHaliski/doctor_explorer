@@ -7,9 +7,10 @@ hospitalares. Casos clínicos anonimizados, chat e vídeo com criptografia ponta
 prontuário, receita e pedido de exame com ICP-Brasil, diretório hospitalar com RBAC. Conformidade com
 **CFM, LGPD e Anvisa** desde o primeiro dia.
 
-Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF04, RF10–RF12 (identidade, selo
-CRM/RQE, perfil, grupos e feed, LGPD, diretório hospitalar, RBAC); `apps/web` é a interface real em
-Next.js sobre essa API. Ordem de entrega em
+Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF05 e RF10–RF13 (identidade, selo
+CRM/RQE, perfil, grupos e feed, anonimização de mídia, LGPD, diretório hospitalar, RBAC, auditoria e painéis);
+`apps/clinical-api` cobre o RF08 (prontuário SOAP no cofre clínico e fachada FHIR R4); `apps/web` é a interface
+real em Next.js sobre as duas. Ordem de entrega em
 [docs/ESPECIFICACAO_TECNICA.md §11](docs/ESPECIFICACAO_TECNICA.md#11-plano-de-entrega); estado por
 história em [docs/TRELLO_BACKLOG.md](docs/TRELLO_BACKLOG.md).
 
@@ -53,8 +54,22 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev     # http://localhost:8080/a
 python3 ../../scripts/gen_schema.py                    # regenera schema.sql depois de uma migração nova
 ```
 
-Fora dos perfis `dev`/`it`, `DE_APP_SECRET` (Base64, 32+ bytes) é obrigatório. A `clinical-api` (PEP,
-prescrição, FHIR) entra na fase 9 com banco e chaves separados.
+Fora dos perfis `dev`/`it`, `DE_APP_SECRET` (Base64, 32+ bytes) é obrigatório.
+
+## Prontuário (`apps/clinical-api`)
+
+Banco, usuário e segredo próprios (ADR-001). O navegador nunca fala com ela: a core-api recebe
+`/api/v1/clinical/**`, valida sessão e CSRF e repassa com um token interno de 60 s (ADR-008).
+
+```bash
+docker compose up -d                                   # o Compose já cria o banco doctor_explorer_clinical e o usuário clinical
+cd apps/clinical-api
+mvn verify                                             # unitários + EhrIT e FhirValidationIT (Testcontainers PostgreSQL)
+mvn spring-boot:run -Dspring-boot.run.profiles=dev     # http://localhost:8081/actuator/health
+```
+
+Fora do perfil `dev`, `DE_CLINICAL_SECRET` (Base64, 32+ bytes) é obrigatório; a core-api acha a clinical-api em
+`DE_CLINICAL_BASE_URL` (padrão `http://localhost:8081`).
 
 ## Web (`apps/web`)
 
@@ -78,7 +93,7 @@ URL), `/casos/novo`, `/casos/[id]`, `/grupos`, `/perfil` (+ selo CRM/RQE), `/per
 
 ## CI
 
-`.github/workflows/ci.yml`: `mvn verify` em JDK 21 e 25 · `apps/web` (typecheck, lint, vitest, build) · `web-e2e` (navegador real contra a API real com PostGIS e Valkey) · **Docs por RF** (`scripts/docs_por_rf.py`:
+`.github/workflows/ci.yml`: `mvn verify` da core-api e da clinical-api em JDK 21 e 25 · `apps/web` (typecheck, lint, vitest, build) · `web-e2e` (navegador real contra as duas APIs reais com o Compose) · **Docs por RF** (`scripts/docs_por_rf.py`:
 doc do RF atualizado no mesmo commit em que seu código muda + todo Mermaid renderiza) · contraste e
 protótipo · CodeQL · Gitleaks · Trivy · SBOM CycloneDX · Dependabot.
 

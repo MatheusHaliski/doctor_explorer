@@ -1,4 +1,5 @@
-# Ambiente local do Doctor Explorer: tudo que a core-api precisa (PostGIS, Valkey, Cassandra da auditoria e Garage S3).
+# Ambiente local do Doctor Explorer: tudo que a core-api e a clinical-api precisam (PostGIS com o banco clínico
+# separado, Valkey, Cassandra da auditoria e Garage S3).
 #   docker compose up -d
 # A Cassandra leva ~1 min para ficar saudável na primeira subida.
 services:
@@ -9,7 +10,10 @@ services:
       POSTGRES_USER: de
       POSTGRES_PASSWORD: de
     ports: ["5432:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # banco e usuário da clinical-api (RF08); roda só na primeira subida do volume
+      - ./infra/postgres/10-clinical.sql:/docker-entrypoint-initdb.d/10-clinical.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U de -d doctor_explorer"]
       interval: 5s

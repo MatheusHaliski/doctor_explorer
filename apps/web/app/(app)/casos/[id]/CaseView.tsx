@@ -18,7 +18,7 @@ type Case = Post & {
 };
 const LABELS: Record<string, string> = { complaint: "Queixa e contexto", history: "História", exam: "Exame físico", workup: "Exames complementares", question: "Pergunta" };
 
-/** RF04 · caso com pareceres; resolver só pelo autor; "Registrar no prontuário" só para o autor (RF08, em breve). */
+/** RF04 · caso com pareceres; resolver só pelo autor; "Registrar no prontuário" só para o autor (RF08). */
 export function CaseView({ id }: { id: string }) {
   const router = useRouter();
   const session = useSession();
@@ -148,9 +148,9 @@ export function CaseView({ id }: { id: string }) {
                 Marcar como resolvido
               </Button>
             )}
-            <Button type="button" disabled title="Chega com o prontuário (RF08)">
+            <Link className="btn" href={`/prontuario/nova?post=${c.id}`}>
               Registrar no prontuário
-            </Button>
+            </Link>
             <Button type="button" variant="danger" onClick={remove}>
               Excluir
             </Button>
