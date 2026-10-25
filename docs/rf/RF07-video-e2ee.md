@@ -196,7 +196,7 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| SFU | `apps/rtc` (Node 22 + mediasoup 3.31: WebSocket com admissão por token interno, origem permitida, até 8 por sala, router por chamada) | ✅ |
+| SFU | `apps/rtc` (Node 22 + mediasoup 3.31 + ws 8.22, que corrige o DoS por fragmentos GHSA-96hv-2xvq-fx4p: WebSocket com admissão por token interno, origem permitida, até 8 por sala, router por chamada, mensagens de até 64 KiB) | ✅ |
 | Serviço | `CallService` + `CallController` (`/api/v1/calls`), `InternalTokens.issueRtc`, TURN efêmero | ✅ |
 | Dados | `V12__chamadas.sql` (`call_session`, `call_participant`) | ✅ |
 | Cliente | `packages/crypto/src/frames.ts` (`FrameKeyRing`), `lib/e2ee-worker.ts`, `lib/call-client.ts` (mediasoup-client), `/chamadas/[id]`, faixa de chamada recebida | ✅ |
