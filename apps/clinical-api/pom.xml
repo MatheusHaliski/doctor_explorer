@@ -71,7 +71,7 @@
       <!-- Ed25519 da assinatura da nota (assinatura eletrônica avançada do MVP) -->
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
-      <version>1.85.2</version>
+      <version>1.86</version>
     </dependency>
     <dependency>
       <!-- RF09 · CMS/CAdES da assinatura PAdES, carimbo do tempo e certificados da AC simulada -->
