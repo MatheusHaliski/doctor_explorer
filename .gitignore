@@ -4,3 +4,6 @@ target/
 .env.*
 *.log
 .DS_Store
+
+# snapshot local do Valkey/Redis (dev)
+dump.rdb
