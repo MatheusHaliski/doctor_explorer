@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { api } from "@/lib/api";
 import { isDark, readCachedAppearance, setAppearance, subscribeAppearance } from "@/lib/appearance";
 import { Seal } from "./Seal";
+import { IncomingCall } from "./call/IncomingCall";
 
 type Props = { user: { userId: string; displayName: string; status: string; roles?: string[] }; seal: string; children: ReactNode };
 
@@ -15,7 +16,6 @@ const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; s
   { href: "/feed?kind=CASE", label: "Casos clínicos", icon: "/icons/nav/casos-clinicos.svg" },
   { href: "/grupos", label: "Grupos", icon: "/icons/nav/grupos.svg" },
   { href: "/mensagens", label: "Mensagens", icon: "/icons/nav/mensagens.svg" },
-  { href: "/chamadas", label: "Chamadas", icon: "/icons/nav/chamadas.svg", soon: true },
   { sep: "Clínico" },
   { href: "/prontuario", label: "Prontuário", icon: "/icons/nav/prontuario.svg" },
   { href: "/prescricoes", label: "Prescrições", icon: "/icons/nav/prescricao.svg" },
@@ -130,6 +130,7 @@ export function Shell({ user, seal, children }: Props) {
             </button>
           </header>
           <main id="main" tabIndex={-1}>
+            <IncomingCall />
             {children}
           </main>
         </div>

@@ -194,9 +194,9 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Cripto | `packages/crypto` (`ChatDevice` sobre `ts-mls` 1.6.4, `safetyCode`, `sealFile`, frase de recuperação) | ✅ |
+| Cripto | `packages/crypto` (`ChatDevice` sobre `ts-mls` 1.6.4, `safetyCode`, `sealFile`, frase de recuperação; `exportSecret` dá a chave das chamadas do RF07, e `frames.ts` é a cifra de quadro delas) | ✅ |
 | Serviço | `MessagingService` + `MessagingController` (Delivery Service, diretório de aparelhos, AS no cliente) | ✅ |
 | Dados | `V11__mensagens.sql` (aparelho, recuperação, KeyPackage, conversa, membro, árvore, denúncia, anexo); Cassandra `cql/V2__messaging.cql` (`mls_message`, `mls_welcome` com TTL) | ✅ |
-| Web | `/mensagens`, `/mensagens/[id]`, `/mensagens/aparelhos`, denúncias na fila de moderação, contador no menu | ✅ |
+| Web | `/mensagens`, `/mensagens/[id]` (com o botão "Chamada de vídeo" do RF07), `/mensagens/aparelhos`, denúncias na fila de moderação, contador no menu | ✅ |
 | Testes | `chat.test.ts` (dois aparelhos reais com MLS: entrega, servidor sem texto claro, recarregar, aparelho novo aprovado e revogado, commits concorrentes, AS recusando chave trocada); `MessagingIT` (aprovação assinada e por frase, KeyPackage de uso único, época, bytes opacos com TTL, grupos, anexos no S3, denúncia); e2e com dois navegadores e um segundo aparelho | ✅ |
 | Pendências | WebSocket, Web Push sem conteúdo, app móvel nativo | ⏳ |

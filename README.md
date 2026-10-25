@@ -9,7 +9,8 @@ prontuário, receita e pedido de exame com ICP-Brasil, diretório hospitalar com
 
 Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF06 e RF10–RF13 (identidade, selo
 CRM/RQE, perfil, grupos e feed, anonimização de mídia, Delivery Service do chat E2EE, LGPD, diretório hospitalar,
-RBAC, auditoria e painéis); `packages/crypto` é o cliente MLS (RFC 9420) que roda no navegador;
+RBAC, auditoria e painéis) e a parte de servidor das chamadas (RF07); `packages/crypto` é o cliente MLS (RFC 9420)
+que roda no navegador; `apps/rtc` é o SFU (mediasoup) das chamadas de vídeo E2EE;
 `apps/clinical-api` cobre o RF08 (prontuário SOAP no cofre clínico e fachada FHIR R4) e o RF09 (receita e pedido de
 exame em PDF/A com assinatura PAdES, QR e validador público); `apps/web` é a interface
 real em Next.js sobre as duas. Ordem de entrega em
@@ -85,6 +86,14 @@ O texto das conversas é cifrado e decifrado só nos aparelhos, com MLS (RFC 942
 por época, entrega KeyPackages de uso único e Welcomes, e guarda bytes opacos na Cassandra com TTL da retenção
 (24 h, 7 ou 90 dias). Chaves ficam no IndexedDB do navegador, cifradas por uma chave não exportável; o primeiro
 aparelho gera a frase de recuperação, os seguintes são aprovados por um aparelho confiável ou pela frase.
+
+## Chamadas de vídeo E2EE (RF07)
+
+`apps/rtc` é o SFU (mediasoup) com sinalização WebSocket: `pnpm --filter @doctor-explorer/rtc start` (porta 4443,
+mídia UDP/TCP 40000–40199; `RTC_ANNOUNCED_ADDRESS` é o IP que o navegador alcança). Ele busca a chave pública da
+core-api e só admite quem traz o token interno de 60 s emitido por `POST /api/v1/calls`. Cada quadro de áudio e
+vídeo é cifrado no navegador com a chave exportada do grupo MLS da conversa; o SFU só repassa cifra. TURN em
+produção: `DE_TURN_URLS` e `DE_TURN_SECRET` (coturn com REST API).
 
 ## Web (`apps/web`)
 

@@ -118,7 +118,7 @@ jobs:
           path: design/prototype/shots
 
   web:
-    name: apps/web + packages/crypto · typecheck, lint, testes, build
+    name: apps/web · typecheck, lint, testes, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -135,8 +135,11 @@ jobs:
           diff design/prototype/tokens.css apps/web/styles/tokens.css
           diff design/brand/logo-mark.svg apps/web/public/brand/logo-mark.svg
           for f in design/brand/backgrounds/*.webp; do cmp "$f" "apps/web/public/backgrounds/$(basename "$f")"; test -f "apps/web/public/backgrounds/thumbs/$(basename "$f")"; done
-      - name: "packages/crypto (cliente MLS do RF06): typecheck + vitest"
+      - name: "packages/crypto (cliente MLS do RF06 e cifra de quadros do RF07): typecheck + vitest"
         working-directory: packages/crypto
+        run: pnpm typecheck && pnpm test
+      - name: "apps/rtc (SFU mediasoup do RF07): typecheck + vitest"
+        working-directory: apps/rtc
         run: pnpm typecheck && pnpm test
       - name: typecheck + lint + vitest + next build
         working-directory: apps/web
@@ -179,6 +182,9 @@ jobs:
         run: |
           mvn -B -ntp -DskipTests package
           SPRING_PROFILES_ACTIVE=dev nohup java -jar target/clinical-api-*.jar > "$RUNNER_TEMP/clinical.log" 2>&1 &
+      - name: rtc (SFU das chamadas do RF07) em segundo plano
+        working-directory: apps/rtc
+        run: nohup node src/server.ts > "$RUNNER_TEMP/rtc.log" 2>&1 &
       - name: web (next build + start) em segundo plano
         working-directory: apps/web
         env:
@@ -191,8 +197,8 @@ jobs:
         run: npm install playwright@1.56.1 && npx playwright install --with-deps chromium
       - name: Esperar API e web
         run: |
-          for i in $(seq 1 60); do curl -sf http://localhost:8080/api/v1/ping >/dev/null && curl -sf http://localhost:8081/actuator/health >/dev/null && curl -sf http://localhost:3000/login >/dev/null && exit 0; sleep 2; done
-          echo "API, clinical-api ou web não subiram"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/clinical.log" "$RUNNER_TEMP/web.log"; exit 1
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/api/v1/ping >/dev/null && curl -sf http://localhost:8081/actuator/health >/dev/null && curl -sf http://localhost:3000/login >/dev/null && curl -sf http://localhost:4443/health >/dev/null && exit 0; sleep 2; done
+          echo "API, clinical-api, rtc ou web não subiram"; tail -50 "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/clinical.log" "$RUNNER_TEMP/rtc.log" "$RUNNER_TEMP/web.log"; exit 1
       - name: Fluxo ponta a ponta
         working-directory: apps/web
         env:
@@ -208,6 +214,7 @@ jobs:
             ${{ runner.temp }}/shots
             ${{ runner.temp }}/api.log
             ${{ runner.temp }}/clinical.log
+            ${{ runner.temp }}/rtc.log
             ${{ runner.temp }}/web.log
 
   codeql:

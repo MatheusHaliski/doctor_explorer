@@ -1,7 +1,7 @@
 /*
  * Teste ponta a ponta no navegador: web real (Next) + core-api (perfil dev) + PostgreSQL + Valkey.
  * Login de verdade, sem mock: cadastro → código do mailer dev (lido do log da API) → selo CRM/RQE na fonte
- * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → chat E2EE com MLS (RF06) → receita PAdES, validador público e link de uso único (RF09) → feed por eixos → LGPD → sudo →
+ * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → chat E2EE com MLS (RF06) → chamada de vídeo E2EE (RF07) → receita PAdES, validador público e link de uso único (RF09) → feed por eixos → LGPD → sudo →
  * tema escuro → mobile → logout → login.
  *
  * Uso: API_LOG=<log da core-api> BASE=http://localhost:3000 [SHOTS=dir] [PLAYWRIGHT_ROOT=<node_modules>] node e2e/flow.cjs
@@ -70,7 +70,8 @@ const errors = []; // erros de JS e console.error do navegador
 const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${name}${extra ? " · " + extra : ""}`); if (!cond) throw new Error("FALHOU: " + name + " " + extra); };
 
 (async () => {
-  const browser = await chromium.launch();
+  // câmera e microfone falsos para as chamadas do RF07
+  const browser = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "pt-BR" });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
@@ -435,6 +436,41 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await bruno.getByRole("button", { name: /^Encaminhar 1 mensagem/ }).click();
   await bruno.getByText("Denúncia enviada à moderação").waitFor();
   ok("denúncia encaminha o trecho decifrado escolhido por quem denuncia", true);
+
+  // RF07: chamada de vídeo E2EE na mesma conversa; a chave de cada quadro vem do grupo MLS
+  await page.getByRole("button", { name: "Chamada de vídeo" }).click();
+  await page.waitForURL(/\/chamadas\/[0-9a-f-]{36}$/);
+  const callId = page.url().split("/").pop();
+  await page.getByText("Sem gravação.").waitFor();
+  await page.getByRole("button", { name: "Entrar na chamada" }).click();
+  await bruno.goto(BASE + "/mensagens");
+  await bruno.getByRole("alertdialog").getByRole("button", { name: "Atender" }).click({ timeout: 20_000 });
+  await bruno.waitForURL("**/chamadas/" + callId);
+  await bruno.getByRole("button", { name: "Entrar na chamada" }).click();
+  const decrypting = async (p) => p.waitForFunction(() => {
+    const s = window.__deCall && window.__deCall.state();
+    const remote = [...document.querySelectorAll("video")].filter((v) => !v.muted);
+    return s && s.e2ee.decrypted > 30 && remote.some((v) => v.videoWidth > 0);
+  }, null, { timeout: 45_000 });
+  await decrypting(page);
+  await decrypting(bruno);
+  await page.getByText("Criptografada ponta a ponta", { exact: true }).waitFor();
+  ok("chamada conectada: vídeo do outro lado decifrado com a chave do grupo MLS", true);
+  await shot("08c-chamada-e2ee");
+  // sem a chave certa nada abre: o que passa pelo SFU é só cifra
+  const before = await page.evaluate(() => window.__deCall.state().e2ee);
+  await bruno.evaluate(() => window.__deCall.breakKey());
+  await page.waitForTimeout(3000);
+  const after = await page.evaluate(() => window.__deCall.state().e2ee);
+  const brunoAfter = await bruno.evaluate(() => window.__deCall.state().e2ee);
+  ok("com outra chave os quadros não abrem (SFU só encaminha cifra)", after.failed - before.failed > 20 && brunoAfter.failed > 20, JSON.stringify({ before, after, brunoAfter }));
+  await page.getByRole("button", { name: "Sair da chamada" }).click();
+  await page.getByRole("heading", { name: "Chamada encerrada" }).waitFor();
+  ok("ao encerrar sugere registrar no prontuário", (await page.getByRole("link", { name: "Registrar no prontuário" }).count()) === 1);
+  await bruno.getByRole("button", { name: "Sair da chamada" }).click();
+  await bruno.getByRole("heading", { name: "Chamada encerrada" }).waitFor();
+  const callMeta = await page.evaluate((id) => fetch(`/api/v1/calls/${id}`).then((r) => r.json()), callId);
+  ok("só metadados: chamada encerrada com dois participantes", callMeta.state === "ENDED" && callMeta.participants.length === 2, callMeta.state);
 
   // Ana aceita o vínculo na gestão; o perfil de Bruno mostra o convite para outras instituições que ela gere
   await page.goto(BASE + `/instituicoes/${hospitalId}/gestao`);

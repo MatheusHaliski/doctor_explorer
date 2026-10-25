@@ -26,6 +26,7 @@ public class InternalTokens {
 
     public static final Duration TTL = Duration.ofSeconds(60);
     public static final String CLINICAL = "clinical-api";
+    public static final String RTC = "rtc";
     private static final byte[] SPKI_PREFIX = {0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00};
 
     /** Quem age e o que pode: selo, CRM e sudo vêm da sessão e do credenciamento no momento da chamada. */
@@ -42,6 +43,16 @@ public class InternalTokens {
     }
 
     public String issue(UUID sub, String name, String crm, String uf, String seal, long sudoUntil, boolean mfa, boolean write, String aud) {
+        return issue(sub, name, crm, uf, seal, sudoUntil, mfa, write, aud, Map.of());
+    }
+
+    /** RF07 · admissão no SFU (apps/rtc): a sala é a chamada; o aparelho é o do chat MLS que fornece a chave E2EE. */
+    public String issueRtc(UUID sub, String name, UUID callId, UUID deviceId) {
+        return issue(sub, name, null, null, "VERIFIED", 0, false, true, RTC, Map.of("room", callId.toString(), "device", deviceId.toString()));
+    }
+
+    private String issue(UUID sub, String name, String crm, String uf, String seal, long sudoUntil, boolean mfa, boolean write, String aud,
+            Map<String, String> extra) {
         Instant now = Instant.now();
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("v", 1);
@@ -58,6 +69,7 @@ public class InternalTokens {
         c.put("iat", now.toEpochMilli());
         c.put("exp", now.plus(TTL).toEpochMilli());
         c.put("jti", UUID.randomUUID().toString());
+        c.putAll(extra);
         String body = "v1." + b64(json.writeValueAsBytes(c));
         return body + "." + b64(sign(body.getBytes(StandardCharsets.US_ASCII)));
     }

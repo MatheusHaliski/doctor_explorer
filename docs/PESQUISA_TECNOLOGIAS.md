@@ -10,7 +10,7 @@ decisão, alternativas, consequências, status. Status possíveis: **proposto ·
 | [ADR-003](#adr-003--openehr-como-modelo-interno-fhir-como-fachada) | openEHR interno, FHIR R4 como fachada | aceito (MVP simplificado) |
 | [ADR-004](#adr-004--hapi-fhir) | HAPI FHIR | aceito |
 | [ADR-005](#adr-005--servidor-de-terminologia) | Servidor de terminologia (CID-10, LOINC, SNOMED CT) | proposto |
-| [ADR-006](#adr-006--webrtc-com-sfu-e-e2ee-sframe) | WebRTC com SFU + E2EE SFrame | proposto |
+| [ADR-006](#adr-006--webrtc-com-sfu-e-e2ee-sframe) | WebRTC com SFU + E2EE SFrame | aceito (mediasoup) |
 | [ADR-007](#adr-007--assinatura-icp-brasil-em-nuvem) | Assinatura ICP-Brasil via provedor em nuvem | proposto |
 | [ADR-008](#adr-008--sessão-opaca-no-cliente-token-interno-curto) | Sessão opaca no cliente; token interno de 60 s entre serviços | aceito |
 | [ADR-009](#adr-009--fonte-de-verificação-de-crmrqe) | Fonte de verificação de CRM/RQE | proposto |
@@ -91,6 +91,12 @@ terminologia FHIR (Snowstorm ou Ontoserver) **só depois da licença** **⚖️*
 
 **Decisão.** SFU (**mediasoup** ou **LiveKit**, a decidir por POC) + *insertable streams* com **SFrame**;
 chave derivada da epoch MLS da conversa. coturn para relay.
+
+**Atualização (MVP, RF07).** **mediasoup 3.31** em `apps/rtc` (Node 22), com sinalização própria por WebSocket.
+O LiveKit ficou de fora porque a entrada na sala dele é um JWT, e o projeto não usa JWT: a admissão aqui é o token
+interno Ed25519 de 60 s da core-api (ADR-008). E2EE por `RTCRtpScriptTransform` num Worker, cifra de quadro no
+espírito do SFrame (RFC 9605): AES-256-GCM, só o cabeçalho do codec em claro, época no trailer. A chave é o
+exportador do grupo MLS da conversa (RFC 9420 §8.5), então muda junto com a época. Só Opus e VP8.
 
 **Alternativas.** Mesh P2P (não escala além de 4); MCU (precisa decifrar).
 

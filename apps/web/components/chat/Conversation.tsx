@@ -189,6 +189,22 @@ export function Conversation({ id, device }: { id: string; device: ChatDevice })
         Época {info.epoch} · {info.devices.length} aparelhos no grupo
       </p>
       <div className="toolbar">
+        {member && info.members.length <= 8 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="primary"
+            loading={busy === "call"}
+            onClick={() =>
+              void act("call", async () => {
+                const c = await api.post<{ call: { id: string } }>("/api/v1/calls", { conversationId: id, deviceId: device.deviceId });
+                router.push(`/chamadas/${c.call.id}`);
+              })
+            }
+          >
+            Chamada de vídeo
+          </Button>
+        )}
         {info.kind === "DIRECT" && (
           <Button type="button" size="sm" loading={busy === "code"} onClick={showCode}>
             Código de segurança

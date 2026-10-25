@@ -204,7 +204,7 @@ flowchart TD
 | Serviço | `apps/clinical-api` (Spring Boot 4.1, banco e segredo próprios, Jib, porta 8081) | ✅ |
 | Migração | `clinical V1__ehr.sql` (cofre, médico, paciente cifrado, índice cego, encontro, nota SOAP versionada, gatilho de imutabilidade) | ✅ |
 | Domínio | `ClinicalVault`, `Practitioner`, `Patient`, `Encounter`, `SoapComposition` (RASCUNHO → ASSINADA → RETIFICADA, DESCARTADA) | ✅ |
-| Segurança | token interno (`InternalTokens` na core-api, `InternalTokenVerifier`/`InternalAuthFilter` na clinical-api), `VaultCrypto`, `BlindIndex`, `NoteSigner` | ✅ |
+| Segurança | token interno (`InternalTokens` na core-api, que também admite no SFU das chamadas do RF07 com `issueRtc`, `InternalTokenVerifier`/`InternalAuthFilter` na clinical-api), `VaultCrypto`, `BlindIndex`, `NoteSigner` | ✅ |
 | Integração | `ClinicalGatewayController` (`/api/v1/clinical/**`, só recursos conhecidos — `patients`, `compositions`, `terminology`, `documents`, `document-templates`, `catalog`, `fhir/r4` — com segmentos simples e consulta já codificada) sobre o `ClinicalClient` (esquema, host e porta vêm só da configuração; volta só `content-type`, `content-disposition`, `etag`, `last-modified` e `location`, sempre `no-store`), `InternalController` (`/api/v1/internal/public-key`, `/api/v1/internal/audit`; o token PUBLIC do RF09 só registra `clinical.document_validate` e `clinical.document_delivery_open`, com ator anônimo), `CoreAudit` | ✅ |
 | Terminologia | CID-10 completo do DATASUS (14 496 códigos) em `terminology/cid10.tsv`, busca por código e palavras | ✅ |
 | FHIR | `FhirMapper`, `FhirController`, validação HAPI no CI (inclui `MedicationRequest` e `ServiceRequest` do RF09); perfis BR da RNDS | ✅ / ⏳ RNDS |

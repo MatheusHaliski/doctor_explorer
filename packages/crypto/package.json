@@ -5,7 +5,8 @@
   "type": "module",
   "description": "RF06/RF07 · cliente MLS (RFC 9420) do aparelho: chaves, KeyPackages, grupos, mensagens, códigos de segurança e chaves de chamada.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./frames": "./src/frames.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

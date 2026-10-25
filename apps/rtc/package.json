@@ -1,0 +1,22 @@
+{
+  "name": "@doctor-explorer/rtc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RF07 · SFU (mediasoup) e sinalização WebSocket das chamadas de vídeo E2EE. Encaminha mídia cifrada sem conseguir abrir.",
+  "scripts": {
+    "start": "node src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "mediasoup": "3.31.0",
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "@types/ws": "8.18.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}
