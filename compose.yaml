@@ -4,7 +4,7 @@
 # A Cassandra leva ~1 min para ficar saudável na primeira subida.
 services:
   postgres:
-    image: postgis/postgis:17-3.5
+    image: postgis/postgis:18-3.6
     environment:
       POSTGRES_DB: doctor_explorer
       POSTGRES_USER: de
