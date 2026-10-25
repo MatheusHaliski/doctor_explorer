@@ -294,6 +294,7 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await page.waitForURL("**/feed?kind=EDUCATION");
   await page.getByText("Nenhuma publicação com esses filtros.").waitFor();
   ok("filtro por tipo vai para a URL", (await page.getByText(title).count()) === 0, "caso some em Educação");
+  ok("filtro do feed acende o item da lateral", (await page.getByRole("link", { name: "Educação", exact: true }).getAttribute("aria-current")) === "page");
   await page.getByRole("tab", { name: "Caso clínico" }).click();
   await page.getByText(title).waitFor();
   await page.getByLabel("Só sem resposta").check();
@@ -607,7 +608,8 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await brunoCtx.close(); await carlaCtx.close();
 
   // ---- RF13 · painel da plataforma (Ana é moderadora com 2FA) e da instituição (gestora do hospital) ----
-  await page.getByRole("link", { name: "Painel da plataforma" }).click();
+  ok("navegação lateral agrupa as abas do painel", (await page.getByRole("group", { name: "Painel da plataforma" }).getByRole("link").allInnerTexts()).join("|") === "Engajamento|Auditoria|Qualidade");
+  await page.getByRole("link", { name: "Engajamento" }).click();
   await page.waitForURL("**/admin");
   await page.locator(".kpi").first().waitFor();
   ok("painel: 5 indicadores de engajamento", (await page.locator(".kpi").count()) === 5);
@@ -630,7 +632,11 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   const csvRes = await page.request.get(csvHref);
   ok("CSV assinado baixado do S3 por URL pré-assinada", csvRes.status() === 200 && (await csvRes.text()).includes("cadeia íntegra"));
   await shot("19-painel-auditoria");
-  await page.getByRole("tab", { name: "Qualidade" }).click();
+  ok("aba do painel fica na URL e acende na lateral", page.url().endsWith("/admin?aba=auditoria") && (await page.getByRole("link", { name: "Auditoria" }).getAttribute("aria-current")) === "page");
+  // a lateral leva direto a cada aba
+  await page.getByRole("link", { name: "Qualidade" }).click();
+  await page.waitForURL("**/admin?aba=qualidade");
+  ok("link lateral abre a aba certa", (await page.getByRole("tab", { name: "Qualidade" }).getAttribute("aria-selected")) === "true");
   await page.getByText("Usabilidade · problemas abertos por severidade").waitFor();
   ok("qualidade lê a planilha heurística", (await page.locator("section[aria-label=Qualidade]").innerText()).includes("AVALIACAO_MVP-1.md"));
   await shot("20-painel-qualidade");

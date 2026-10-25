@@ -38,7 +38,7 @@ button { font: inherit; color: inherit; }
 .skip:focus { left: 8px; }
 
 /* layout */
-.app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+.app { display: grid; grid-template-columns: 272px 1fr; min-height: 100vh; }
 .sidebar { background: var(--bg); border-right: 1px solid var(--line); padding: var(--space-4); position: sticky; top: 0; height: 100vh; overflow: auto; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; font-weight: 800; font-size: 18px; color: var(--brand-text); text-decoration: none; }
 .brand img { width: 36px; height: 36px; }
@@ -46,8 +46,12 @@ button { font: inherit; color: inherit; }
 .nav a:hover { background: var(--surface-2); }
 .nav a[aria-current="page"] { background: var(--nav-active-bg); color: var(--nav-active-text); }
 .nav img { width: 26px; height: 26px; }
-.nav .sep { margin: 12px 8px 4px; font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
 .nav .soon { opacity: .55; }
+/* grupos da navegação: rótulo do módulo + uma entrada por subpágina, todas visíveis */
+.nav-group + .nav-group { margin-top: var(--space-3); }
+.nav-label { margin: 0 12px 4px; font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--text-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .1em; }
+.nav-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.nav-group a { min-height: 40px; }
 
 .topbar { display: flex; align-items: center; gap: 4px; background: var(--bg); border-bottom: 1px solid var(--line); padding: 0 var(--space-4); height: 60px; position: sticky; top: 0; z-index: 5; }
 .topbar .grow { flex: 1; }
@@ -176,8 +180,16 @@ html[data-bg]:not([data-bg="none"]) main {
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   border-radius: var(--radius-lg); margin: var(--space-4); box-shadow: var(--shadow-1);
 }
+/* com arte de fundo, a navegação também flutua num cartão próprio, como o painel de leitura */
+html[data-bg]:not([data-bg="none"]) .sidebar {
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-1);
+  margin: var(--space-4) 0 var(--space-4) var(--space-4); top: var(--space-4); height: calc(100vh - 2 * var(--space-4));
+}
 @media (prefers-reduced-transparency: reduce) {
   html[data-bg]:not([data-bg="none"]) main { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html[data-bg]:not([data-bg="none"]) .sidebar { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 html { background: var(--surface); }
 
@@ -232,6 +244,7 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
   .app { grid-template-columns: 1fr; }
   .sidebar { position: fixed; inset: 0 auto 0 0; width: 280px; transform: translateX(-100%); transition: transform var(--dur-base) var(--ease-out); z-index: 20; }
   .sidebar.open { transform: none; }
+  html[data-bg]:not([data-bg="none"]) .sidebar { margin: 0; top: 0; height: 100vh; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
   .scrim { position: fixed; inset: 0; background: rgba(11, 42, 91, .45); z-index: 15; border: 0; }
   .search { width: auto; flex: 1; }
   .topbar > .seal { display: none; }

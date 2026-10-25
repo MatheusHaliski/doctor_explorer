@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
 import { formatDateTime } from "@/lib/domain";
@@ -23,11 +24,13 @@ type Export = { id: string; state: string; filters: string; events: number | nul
 
 export type DashboardScope = { kind: "platform" } | { kind: "institution"; id: string; name: string };
 
+/** A aba vive na URL (?aba=auditoria): a navegação lateral leva direto a cada uma. */
 const TABS = [
-  ["engagement", "Engajamento"],
-  ["audit", "Auditoria"],
-  ["quality", "Qualidade"],
+  ["engajamento", "Engajamento"],
+  ["auditoria", "Auditoria"],
+  ["qualidade", "Qualidade"],
 ] as const;
+type Tab = (typeof TABS)[number][0];
 
 const CATEGORIES: Record<string, string> = { auth: "Acesso", privacy: "Privacidade", moderation: "Moderação", institution: "Instituição", clinical: "Clínico", audit: "Auditoria", community: "Comunidade", media: "Mídia", chat: "Chat", call: "Chamada" };
 
@@ -41,7 +44,11 @@ function cellText(c: Cell, suffix = "") {
 
 /** RF13 · painel (plataforma ou instituição): engajamento k-anônimo, auditoria encadeada e qualidade. */
 export function DashboardView({ scope }: { scope: DashboardScope }) {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>("engagement");
+  const router = useRouter();
+  const pathname = usePathname();
+  const aba = useSearchParams().get("aba");
+  const tab: Tab = TABS.find(([id]) => id === aba)?.[0] ?? "engajamento";
+  const setTab = (id: Tab) => router.replace(id === "engajamento" ? pathname : `${pathname}?aba=${id}`, { scroll: false });
   return (
     <div>
       <h1>{scope.kind === "platform" ? "Painel da plataforma" : `Painel · ${scope.name}`}</h1>
@@ -56,9 +63,9 @@ export function DashboardView({ scope }: { scope: DashboardScope }) {
         ))}
       </div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-4">
-        {tab === "engagement" && <EngagementTab scope={scope} />}
-        {tab === "audit" && <AuditTab scope={scope} />}
-        {tab === "quality" && <QualityTab scope={scope} />}
+        {tab === "engajamento" && <EngagementTab scope={scope} />}
+        {tab === "auditoria" && <AuditTab scope={scope} />}
+        {tab === "qualidade" && <QualityTab scope={scope} />}
       </div>
     </div>
   );

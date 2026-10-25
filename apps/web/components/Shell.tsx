@@ -1,39 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { isDark, readCachedAppearance, setAppearance, subscribeAppearance } from "@/lib/appearance";
+import { activeHref, visibleNav } from "@/lib/nav";
 import { Seal } from "./Seal";
 import { IncomingCall } from "./call/IncomingCall";
 
 type Props = { user: { userId: string; displayName: string; status: string; roles?: string[] }; seal: string; children: ReactNode };
 
 /* eslint-disable @next/next/no-img-element */
-const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; soon?: boolean; mod?: boolean; admin?: boolean }> = [
-  { href: "/feed", label: "Início", icon: "/icons/nav/inicio.svg" },
-  { href: "/feed?kind=CASE", label: "Casos clínicos", icon: "/icons/nav/casos-clinicos.svg" },
-  { href: "/grupos", label: "Grupos", icon: "/icons/nav/grupos.svg" },
-  { href: "/mensagens", label: "Mensagens", icon: "/icons/nav/mensagens.svg" },
-  { sep: "Clínico" },
-  { href: "/prontuario", label: "Prontuário", icon: "/icons/nav/prontuario.svg" },
-  { href: "/prescricoes", label: "Prescrições", icon: "/icons/nav/prescricao.svg" },
-  { href: "/exames", label: "Exames", icon: "/icons/nav/exames.svg", soon: true },
-  { sep: "Instituição" },
-  { href: "/instituicoes", label: "Instituições", icon: "/icons/nav/instituicoes.svg" },
-  { sep: "Administração", admin: true },
-  { href: "/moderacao", label: "Fila de moderação", icon: "/icons/nav/administracao.svg", mod: true },
-  { href: "/admin", label: "Painel da plataforma", icon: "/icons/nav/inicio.svg", admin: true },
-  { sep: "Conta" },
-  { href: "/perfil", label: "Perfil", icon: "/icons/topbar/perfil.svg" },
-  { href: "/privacidade", label: "Privacidade", icon: "/icons/nav/privacidade.svg" },
-  { href: "/seguranca", label: "Sessões e segurança", icon: "/icons/topbar/e2ee.svg" },
-  { href: "/aparencia", label: "Aparência", icon: "/icons/nav/configuracoes.svg" },
-];
-
 export function Shell({ user, seal, children }: Props) {
   const pathname = usePathname();
+  const search = useSearchParams();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const dark = useSyncExternalStore(subscribeAppearance, isDark, () => false);
@@ -54,10 +35,8 @@ export function Shell({ user, seal, children }: Props) {
     }
   }
 
-  const moderator = (user.roles ?? []).some((r) => r === "MODERATOR" || r === "ADMIN");
-  const panel = (user.roles ?? []).some((r) => r === "MODERATOR" || r === "ADMIN" || r === "DPO");
-  const nav = NAV.filter((n) => (!n.mod || moderator) && (!n.admin || panel));
-  const current = (href: string) => (href === "/feed" ? pathname === "/feed" : pathname.startsWith(href.split("?")[0]!));
+  const groups = visibleNav(user.roles ?? []);
+  const active = activeHref(groups, pathname, search);
 
   return (
     <>
@@ -72,29 +51,36 @@ export function Shell({ user, seal, children }: Props) {
             Doctor Explorer
           </Link>
           <nav className="nav">
-            {nav.map((n, i) =>
-              n.sep ? (
-                <div className="sep" key={i}>
-                  {n.sep}
-                </div>
-              ) : n.soon ? (
-                <a key={n.href} href="#" className="soon" aria-disabled="true" title="Em breve" onClick={(e) => e.preventDefault()}>
-                  <img src={n.icon} alt="" />
-                  {n.label}
-                  <span className="ml-auto text-xs text-text-3">em breve</span>
-                </a>
-              ) : (
-                <Link key={n.href} href={n.href!} aria-current={current(n.href!) ? "page" : undefined} onClick={close}>
-                  <img src={n.icon} alt="" />
-                  {n.label}
-                  {n.href === "/mensagens" && unread > 0 && (
-                    <span className="badge ml-auto" aria-label={`${unread} ${unread === 1 ? "conversa com mensagem nova" : "conversas com mensagens novas"}`}>
-                      {unread}
-                    </span>
-                  )}
-                </Link>
-              ),
-            )}
+            {groups.map((g) => (
+              <div key={g.id} className="nav-group" role="group" aria-labelledby={`nav-${g.id}`}>
+                <p className="nav-label" id={`nav-${g.id}`}>
+                  {g.label}
+                </p>
+                <ul>
+                  {g.items.map((n) => (
+                    <li key={n.href}>
+                      {n.soon ? (
+                        <a href="#" className="soon" aria-disabled="true" title="Em breve" onClick={(e) => e.preventDefault()}>
+                          <img src={n.icon} alt="" />
+                          {n.label}
+                          <span className="ml-auto text-xs text-text-3">em breve</span>
+                        </a>
+                      ) : (
+                        <Link href={n.href} aria-current={n.href === active ? "page" : undefined} onClick={close}>
+                          <img src={n.icon} alt="" />
+                          {n.label}
+                          {n.href === "/mensagens" && unread > 0 && (
+                            <span className="badge ml-auto" aria-label={`${unread} ${unread === 1 ? "conversa com mensagem nova" : "conversas com mensagens novas"}`}>
+                              {unread}
+                            </span>
+                          )}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </nav>
         </aside>
         <div className="min-w-0">
