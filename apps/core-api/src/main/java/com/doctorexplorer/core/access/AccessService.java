@@ -70,4 +70,23 @@ public class AccessService {
             throw new ApiProblemException(HttpStatus.NOT_FOUND, "nao-encontrado", "Não encontrado", "O recurso não existe ou você não tem acesso.");
         }
     }
+
+    /** Papéis globais da sessão, sem o prefixo ROLE_ (PROFESSIONAL, MODERATOR, ADMIN, DPO, TECHNICAL_DIRECTOR). */
+    public java.util.Set<String> globalRoles() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return java.util.Set.of();
+        return auth.getAuthorities().stream().map(a -> a.getAuthority().replace("ROLE_", "")).collect(java.util.stream.Collectors.toSet());
+    }
+
+    /**
+     * Papéis sensíveis (gestor, auditor, moderador, admin, Encarregado) só agem com 2FA ativo na sessão (RF12, RF13).
+     * Para as rotas /admin isso já vem do SecurityConfig; as rotas por instituição chamam este método.
+     */
+    public void requireMfaSession(jakarta.servlet.http.HttpServletRequest request) {
+        var session = request.getSession(false);
+        if (session == null || !Boolean.TRUE.equals(session.getAttribute(com.doctorexplorer.core.identity.web.SessionSupport.MFA_ENABLED))) {
+            throw new ApiProblemException(HttpStatus.FORBIDDEN, "2fa-necessario", "Verificação em duas etapas necessária",
+                    "Painéis de gestão e auditoria exigem 2FA ativo. Ative em Sessões e segurança, saia e entre de novo.");
+        }
+    }
 }

@@ -1,4 +1,15 @@
 doctor-explorer:
+  cassandra:
+    replication: "{'class': 'SimpleStrategy', 'replication_factor': 1}"
+  # Garage do compose.yaml (infra/garage/init.sh cria a chave e os buckets)
+  storage:
+    endpoint: ${DE_S3_ENDPOINT:http://localhost:3900}
+    region: garage
+    access-key: ${DE_S3_ACCESS_KEY:GKdedevdedevdedevdedevdede}
+    secret-key: ${DE_S3_SECRET_KEY:de-dev-secret-de-dev-secret-de-dev-secret-de-dev-secret-0000000}
+    path-style: true
+    create-buckets: false
+    server-side-encryption: false
   app-secret: ${DE_APP_SECRET:ZGV2LW9ubHktc2VjcmV0LWRldi1vbmx5LXNlY3JldC0xMjM0NTY=}
   session:
     # Em dev sem TLS o navegador recusa cookie Secure com prefixo __Host-; use o perfil só em localhost.

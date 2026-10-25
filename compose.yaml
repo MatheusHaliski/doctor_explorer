@@ -1,6 +1,6 @@
-# Ambiente local do Doctor Explorer. Sobe só o que a core-api precisa; `--profile full` acrescenta a Cassandra.
+# Ambiente local do Doctor Explorer: tudo que a core-api precisa (PostGIS, Valkey, Cassandra da auditoria e Garage S3).
 #   docker compose up -d
-#   docker compose --profile full up -d
+# A Cassandra leva ~1 min para ficar saudável na primeira subida.
 services:
   postgres:
     image: postgis/postgis:17-3.5
@@ -27,7 +27,7 @@ services:
       retries: 20
 
   garage:
-    image: dxflrs/garage:v2.4.0
+    image: dxflrs/garage:v2.4.1
     volumes:
       - ./infra/garage/garage.toml:/etc/garage.toml:ro
       - garagemeta:/var/lib/garage/meta
@@ -46,9 +46,10 @@ services:
 
   cassandra:
     image: cassandra:5.0
-    profiles: [full]
     environment:
       CASSANDRA_CLUSTER_NAME: de-local
+      MAX_HEAP_SIZE: 768M
+      HEAP_NEWSIZE: 128M
     ports: ["9042:9042"]
     volumes: [cassdata:/var/lib/cassandra]
     healthcheck:

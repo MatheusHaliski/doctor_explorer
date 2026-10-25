@@ -10,7 +10,7 @@ import { Seal } from "./Seal";
 type Props = { user: { userId: string; displayName: string; status: string; roles?: string[] }; seal: string; children: ReactNode };
 
 /* eslint-disable @next/next/no-img-element */
-const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; soon?: boolean; mod?: boolean }> = [
+const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; soon?: boolean; mod?: boolean; admin?: boolean }> = [
   { href: "/feed", label: "Início", icon: "/icons/nav/inicio.svg" },
   { href: "/feed?kind=CASE", label: "Casos clínicos", icon: "/icons/nav/casos-clinicos.svg" },
   { href: "/grupos", label: "Grupos", icon: "/icons/nav/grupos.svg" },
@@ -22,8 +22,9 @@ const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; s
   { href: "/exames", label: "Exames", icon: "/icons/nav/exames.svg", soon: true },
   { sep: "Instituição" },
   { href: "/instituicoes", label: "Instituições", icon: "/icons/nav/instituicoes.svg" },
-  { sep: "Moderação", mod: true },
+  { sep: "Administração", admin: true },
   { href: "/moderacao", label: "Fila de moderação", icon: "/icons/nav/administracao.svg", mod: true },
+  { href: "/admin", label: "Painel da plataforma", icon: "/icons/nav/inicio.svg", admin: true },
   { sep: "Conta" },
   { href: "/perfil", label: "Perfil", icon: "/icons/topbar/perfil.svg" },
   { href: "/privacidade", label: "Privacidade", icon: "/icons/nav/privacidade.svg" },
@@ -53,7 +54,8 @@ export function Shell({ user, seal, children }: Props) {
   }
 
   const moderator = (user.roles ?? []).some((r) => r === "MODERATOR" || r === "ADMIN");
-  const nav = NAV.filter((n) => !n.mod || moderator);
+  const panel = (user.roles ?? []).some((r) => r === "MODERATOR" || r === "ADMIN" || r === "DPO");
+  const nav = NAV.filter((n) => (!n.mod || moderator) && (!n.admin || panel));
   const current = (href: string) => (href === "/feed" ? pathname === "/feed" : pathname.startsWith(href.split("?")[0]!));
 
   return (

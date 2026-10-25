@@ -1,5 +1,7 @@
 package com.doctorexplorer.core.identity.service;
 
+import com.doctorexplorer.core.audit.AuditLog;
+import com.doctorexplorer.core.audit.AuditRecord;
 import com.doctorexplorer.core.identity.domain.AccountStatus;
 import com.doctorexplorer.core.identity.domain.Credential;
 import com.doctorexplorer.core.identity.domain.LoginAudit;
@@ -38,8 +40,10 @@ public class LoginService {
     private final MfaService mfa;
     private final PasswordPolicy passwordPolicy;
 
+    private final AuditLog audit;
+
     public LoginService(UserAccounts accounts, Credentials credentials, LoginAudits audits, PasswordEncoder encoder,
-            LoginRateLimiter limiter, MfaService mfa, PasswordPolicy passwordPolicy) {
+            LoginRateLimiter limiter, MfaService mfa, PasswordPolicy passwordPolicy, AuditLog audit) {
         this.accounts = accounts;
         this.credentials = credentials;
         this.audits = audits;
@@ -47,6 +51,7 @@ public class LoginService {
         this.limiter = limiter;
         this.mfa = mfa;
         this.passwordPolicy = passwordPolicy;
+        this.audit = audit;
     }
 
     @Transactional
@@ -54,7 +59,7 @@ public class LoginService {
         String key = UserAccount.normalizeEmail(email == null ? "" : email);
         LoginRateLimiter.Decision d = limiter.check(key, ipHash);
         if (!d.allowed()) {
-            audits.save(new LoginAudit(null, LoginAudit.Outcome.LOCKED, ipHash, userAgent));
+            track(new LoginAudit(null, LoginAudit.Outcome.LOCKED, ipHash, userAgent), ipHash);
             throw tooMany(d.retryAfterSeconds());
         }
         Optional<UserAccount> found = accounts.findByEmailNormalized(key);
@@ -63,13 +68,13 @@ public class LoginService {
         boolean ok = found.isPresent() && encoder.matches(password == null ? "" : password, hash);
         if (!ok || found.get().getStatus() == AccountStatus.ANONYMOUS_LGPD_DELETED || found.get().getStatus() == AccountStatus.SUSPENDED) {
             limiter.recordFailure(key, ipHash);
-            audits.save(new LoginAudit(found.map(UserAccount::getId).orElse(null), LoginAudit.Outcome.BAD_CREDENTIALS, ipHash, userAgent));
+            track(new LoginAudit(found.map(UserAccount::getId).orElse(null), LoginAudit.Outcome.BAD_CREDENTIALS, ipHash, userAgent), ipHash);
             throw new ApiProblemException(HttpStatus.UNAUTHORIZED, "credenciais", "Não foi possível entrar", "E-mail ou senha incorretos.");
         }
         UserAccount account = found.get();
         limiter.recordSuccess(key);
         if (mfa.isEnabled(account.getId())) {
-            audits.save(new LoginAudit(account.getId(), LoginAudit.Outcome.MFA_REQUIRED, ipHash, userAgent));
+            track(new LoginAudit(account.getId(), LoginAudit.Outcome.MFA_REQUIRED, ipHash, userAgent), ipHash);
             return new Result(Next.MFA, account);
         }
         return finish(account, ipHash, userAgent);
@@ -84,7 +89,7 @@ public class LoginService {
         MfaService.Verification v = mfa.verify(userId, code);
         if (v == MfaService.Verification.INVALID) {
             limiter.recordMfaFailure(userId.toString());
-            audits.save(new LoginAudit(userId, LoginAudit.Outcome.MFA_FAILED, ipHash, userAgent));
+            track(new LoginAudit(userId, LoginAudit.Outcome.MFA_FAILED, ipHash, userAgent), ipHash);
             throw new ApiProblemException(HttpStatus.UNAUTHORIZED, "codigo-2fa", "Código incorreto",
                     "Confira o código do aplicativo autenticador ou use um código de recuperação.");
         }
@@ -95,7 +100,7 @@ public class LoginService {
     /** Depois da senha (e do 2FA, quando houver): decide entre entrar ou oferecer reativação. */
     @Transactional
     public Result finish(UserAccount account, String ipHash, String userAgent) {
-        audits.save(new LoginAudit(account.getId(), LoginAudit.Outcome.SUCCESS, ipHash, userAgent));
+        track(new LoginAudit(account.getId(), LoginAudit.Outcome.SUCCESS, ipHash, userAgent), ipHash);
         if (account.getStatus() == AccountStatus.PENDING_DELETION) return new Result(Next.REACTIVATE, account);
         return new Result(Next.AUTHENTICATED, account);
     }
@@ -120,6 +125,7 @@ public class LoginService {
         if (!problems.isEmpty()) return problems;
         c.change(encoder.encode(newPassword));
         credentials.save(c);
+        audit.record(AuditRecord.of("auth.password_change").actor(userId, "").resource("user_account", userId));
         return List.of();
     }
 
@@ -132,7 +138,16 @@ public class LoginService {
 
     @Transactional
     public void logout(UUID userId, String ipHash, String userAgent) {
-        audits.save(new LoginAudit(userId, LoginAudit.Outcome.LOGOUT, ipHash, userAgent));
+        track(new LoginAudit(userId, LoginAudit.Outcome.LOGOUT, ipHash, userAgent), ipHash);
+    }
+
+    /** login_audit (alertas e limite de tentativas) + trilha encadeada da auditoria (RF13). */
+    private void track(LoginAudit a, String ipHash) {
+        audits.save(a);
+        if (a.getOutcome() == LoginAudit.Outcome.MFA_REQUIRED) return; // etapa intermediária, não é desfecho
+        String action = a.getOutcome() == LoginAudit.Outcome.LOGOUT ? "auth.logout" : "auth.login";
+        audit.record(AuditRecord.of(action).actor(a.getUserId(), "").resource("user_account", a.getUserId())
+                .outcome(a.getOutcome().name().toLowerCase(java.util.Locale.ROOT)).ip(ipHash));
     }
 
     private static ApiProblemException tooMany(long retryAfter) {

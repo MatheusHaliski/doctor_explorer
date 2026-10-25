@@ -1,5 +1,7 @@
 package com.doctorexplorer.core.institution.service;
 
+import com.doctorexplorer.core.audit.AuditLog;
+import com.doctorexplorer.core.audit.AuditRecord;
 import com.doctorexplorer.core.common.Hashing;
 import com.doctorexplorer.core.credentialing.service.CredentialingService;
 import com.doctorexplorer.core.institution.domain.Institution;
@@ -42,8 +44,10 @@ public class DirectoryService {
     private final InstitutionTreePolicy tree;
     private final CredentialingService credentialing;
 
+    private final AuditLog audit;
+
     public DirectoryService(Institutions institutions, InstitutionMemberships memberships, InstitutionChecks checks,
-            CnpjPort cnpj, CnesPort cnes, InstitutionTreePolicy tree, CredentialingService credentialing) {
+            CnpjPort cnpj, CnesPort cnes, InstitutionTreePolicy tree, CredentialingService credentialing, AuditLog audit) {
         this.institutions = institutions;
         this.memberships = memberships;
         this.checks = checks;
@@ -51,6 +55,7 @@ public class DirectoryService {
         this.cnes = cnes;
         this.tree = tree;
         this.credentialing = credentialing;
+        this.audit = audit;
     }
 
     /** Quem cadastra vira administrador da instituição (vínculo ATIVO); a instituição só aparece depois de conferida. */
@@ -84,6 +89,8 @@ public class DirectoryService {
         Role adminRole = n.type() == Institution.Type.NETWORK ? Role.NETWORK_ADMIN : n.type() == Institution.Type.HOSPITAL ? Role.HOSPITAL_ADMIN : Role.UNIT_MANAGER;
         memberships.save(new InstitutionMembership(inst.getId(), creatorId, adminRole, State.ACTIVE));
         verify(inst);
+        audit.record(AuditRecord.of("institution.register").actor(creatorId, "").resource("institution", inst.getId()).institution(inst.getId())
+                .detail("state", inst.getState()).detail("parentId", n.parentId()));
         return inst;
     }
 
@@ -163,8 +170,10 @@ public class DirectoryService {
         if (existing.isPresent()) {
             InstitutionMembership m = existing.get();
             if (m.getState() == State.REQUESTED) m.activate();
+            audit.record(AuditRecord.of("institution.member_approve").actor(managerId, "").resource("user_account", userId).institution(institutionId));
             return memberships.save(m);
         }
+        audit.record(AuditRecord.of("institution.member_invite").actor(managerId, "").resource("user_account", userId).institution(institutionId));
         return memberships.save(new InstitutionMembership(institutionId, userId, Role.STAFF_PHYSICIAN, State.INVITED));
     }
 
@@ -180,6 +189,7 @@ public class DirectoryService {
                 .filter(x -> x.getState() == State.ACTIVE)
                 .orElseThrow(() -> new ApiProblemException(HttpStatus.NOT_FOUND, "nao-encontrado", "Vínculo não encontrado", "O usuário não tem vínculo ativo com esta instituição."));
         m.setRole(role);
+        audit.record(AuditRecord.of("institution.role_assign").actor(managerId, "").resource("user_account", userId).institution(institutionId).detail("role", role));
         return memberships.save(m);
     }
 
@@ -189,6 +199,7 @@ public class DirectoryService {
         memberships.findById(new InstitutionMembership.Key(institutionId, userId)).ifPresent(m -> {
             m.end();
             memberships.save(m);
+            audit.record(AuditRecord.of("institution.member_end").actor(actorId, "").resource("user_account", userId).institution(institutionId));
         });
     }
 

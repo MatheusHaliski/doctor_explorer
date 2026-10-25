@@ -111,19 +111,6 @@ jobs:
   web-e2e:
     name: apps/web · e2e no navegador (API real)
     runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: postgis/postgis:17-3.5
-        env:
-          POSTGRES_DB: doctor_explorer
-          POSTGRES_USER: de
-          POSTGRES_PASSWORD: de
-        ports: ["5432:5432"]
-        options: --health-cmd "pg_isready -U de" --health-interval 5s --health-timeout 5s --health-retries 20
-      valkey:
-        image: valkey/valkey:9
-        ports: ["6379:6379"]
-        options: --health-cmd "valkey-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -137,6 +124,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Infra do compose.yaml (PostGIS, Valkey, Cassandra da auditoria, Garage S3 com buckets)
+        run: |
+          docker compose up -d
+          for i in $(seq 1 60); do docker compose ps cassandra --format '{{.Status}}' | grep -q healthy && break; sleep 5; done
+          docker compose ps
       - name: core-api (perfil dev) em segundo plano
         working-directory: apps/core-api
         run: |

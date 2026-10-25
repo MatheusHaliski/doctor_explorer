@@ -1,5 +1,7 @@
 package com.doctorexplorer.core.identity.service;
 
+import com.doctorexplorer.core.audit.AuditLog;
+import com.doctorexplorer.core.audit.AuditRecord;
 import com.doctorexplorer.core.common.AesGcm;
 import com.doctorexplorer.core.common.Hashing;
 import com.doctorexplorer.core.config.AppSecretProperties;
@@ -36,9 +38,12 @@ public class MfaService {
     private final RecoveryCodes recoveryCodes;
     private final byte[] key;
 
-    public MfaService(MfaSecrets secrets, RecoveryCodes recoveryCodes, AppSecretProperties props) {
+    private final AuditLog audit;
+
+    public MfaService(MfaSecrets secrets, RecoveryCodes recoveryCodes, AppSecretProperties props, AuditLog audit) {
         this.secrets = secrets;
         this.recoveryCodes = recoveryCodes;
+        this.audit = audit;
         this.key = props.subkey("mfa");
     }
 
@@ -68,12 +73,14 @@ public class MfaService {
                     "Confira o código no aplicativo autenticador e tente de novo.");
         }
         s.confirm();
+        audit.record(AuditRecord.of("auth.mfa_enable").actor(userId, "").resource("user_account", userId));
         secrets.save(s);
         return regenerateRecoveryCodes(userId);
     }
 
     @Transactional
     public List<String> regenerateRecoveryCodes(UUID userId) {
+        audit.record(AuditRecord.of("auth.mfa_recovery_regenerate").actor(userId, "").resource("user_account", userId));
         recoveryCodes.deleteByUserId(userId);
         List<String> plain = new ArrayList<>(RECOVERY_CODES);
         for (int i = 0; i < RECOVERY_CODES; i++) {
@@ -109,6 +116,7 @@ public class MfaService {
     public void disable(UUID userId) {
         recoveryCodes.deleteByUserId(userId);
         secrets.deleteById(userId);
+        audit.record(AuditRecord.of("auth.mfa_disable").actor(userId, "").resource("user_account", userId));
     }
 
     private byte[] decrypt(MfaSecret s) {

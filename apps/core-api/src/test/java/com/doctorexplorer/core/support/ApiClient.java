@@ -27,19 +27,19 @@ public class ApiClient {
     }
 
     public MockHttpServletResponse get(String path) throws Exception {
-        return exchange(MockMvcRequestBuilders.get(path));
+        return exchange(MockMvcRequestBuilders.get(uri(path)));
     }
 
     public MockHttpServletResponse post(String path, String json) throws Exception {
         if (!jar.containsKey("XSRF-TOKEN")) get("/api/v1/auth/csrf");
-        MockHttpServletRequestBuilder b = MockMvcRequestBuilders.post(path).header("X-XSRF-TOKEN", jar.get("XSRF-TOKEN").getValue());
+        MockHttpServletRequestBuilder b = MockMvcRequestBuilders.post(uri(path)).header("X-XSRF-TOKEN", jar.get("XSRF-TOKEN").getValue());
         if (json != null) b.contentType(MediaType.APPLICATION_JSON).content(json);
         return exchange(b);
     }
 
     public MockHttpServletResponse put(String path, String json) throws Exception {
         if (!jar.containsKey("XSRF-TOKEN")) get("/api/v1/auth/csrf");
-        MockHttpServletRequestBuilder b = MockMvcRequestBuilders.put(path).header("X-XSRF-TOKEN", jar.get("XSRF-TOKEN").getValue());
+        MockHttpServletRequestBuilder b = MockMvcRequestBuilders.put(uri(path)).header("X-XSRF-TOKEN", jar.get("XSRF-TOKEN").getValue());
         if (json != null) b.contentType(MediaType.APPLICATION_JSON).content(json);
         return exchange(b);
     }
@@ -98,5 +98,10 @@ public class ApiClient {
 
     private void remember(String name, String value, int maxAge) {
         if (maxAge == 0 || value.isEmpty()) jar.remove(name); else jar.put(name, new Cookie(name, value));
+    }
+
+    /** Caminho já codificado (ex.: justificativa com %20) vai como URI literal, sem recodificar. */
+    private static java.net.URI uri(String path) {
+        return java.net.URI.create(path);
     }
 }

@@ -40,6 +40,7 @@ paths:
 | `GET /institutions/{id}/members` (gestão) | ❌ | ❌ | ❌ | ❌ | ✅ (sua árvore) | ❌ | ❌ |
 | `PUT /institutions/{id}/roles` | ❌ | ❌ | ❌ | ❌ | ✅ HOSPITAL_ADMIN+ | ❌ | ❌ |
 | `GET /admin/audit` | ❌ | ❌ | ❌ | ❌ | ✅ AUDITOR (sua árvore) | ✅ | ✅ |
+| `GET /admin/dashboard/**` (engajamento, qualidade) | ❌ | ❌ | ❌ | ❌ | ✅ gestor e auditor (sua árvore) | ✅ | ✅ |
 | `/admin/moderation/**` (fila, selo, grupo) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | `GET /privacy/dpo/tickets` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | `/me/**` | ❌ | ✅ (parcial) | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -196,7 +197,8 @@ flowchart TD
 | Domínio | `AccessService` (`requireActive`, `requireVerifiedSeal` para escrita social/clínica, `requireVerifiedSealOrModerator` para leitura de grupos/feed, `requireOwnerOr404`) | ✅ |
 | Domínio | `InstitutionTreePolicy` (papéis institucionais, herança rede → hospital → unidade, concessão limitada ao próprio papel) | ✅ |
 | Testes | `SecurityHeadersTest` (401 sem sessão) | ✅ |
-| Testes | `AccessMatrixIT` (lê a tabela deste doc; rotas implementadas `/me/**`, `POST /credentials`, `GET /groups/**`, `POST /posts`, `GET /admin/audit`, `/admin/moderation/**`, `GET /institutions/{id}/members`, `GET /privacy/dpo/tickets` × visitante/pendente/ativo/verificado/moderador/DPO) | ✅ |
+| Testes | `AccessMatrixIT` (lê a tabela deste doc; rotas implementadas `/me/**`, `POST /credentials`, `GET /groups/**`, `POST /posts`, `GET /admin/audit`, `/admin/moderation/**`, `GET /institutions/{id}/members`, `GET /admin/dashboard/**`, `GET /privacy/dpo/tickets` × visitante/pendente/ativo/verificado/moderador/DPO) | ✅ |
 | Sessão | `GET /auth/session` devolve `roles` (sem `ROLE_`); o web monta a navegação (fila de moderação, gestão) a partir disso e a API continua sendo quem nega | ✅ |
+| Segurança | `SecurityConfig`: `/admin/dashboard/**` junto com `/admin/audit/**` (MODERATOR, ADMIN, DPO + 2FA); `GET /audit/public-key` público; painéis por instituição checam papel efetivo e 2FA no domínio (`AccessService.requireMfaSession`) | ✅ |
 | Testes | `DirectoryIT` (herança na árvore, papel nunca acima do concedente, 403 com motivo × 404 fora da árvore) | ✅ |
 | Config | `GET /institutions`, `GET /institutions/{id}` e `GET /profiles/{id}` públicos (visibilidade decidida no domínio) | ✅ |

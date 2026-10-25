@@ -352,6 +352,40 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   ok("Carla verificada e Bruno membro de Dermatologia", /Dermatologia[\s\S]*Você é membro/.test(await bruno.locator(".card", { hasText: "Dermatologia" }).innerText()));
   await brunoCtx.close(); await carlaCtx.close();
 
+  // ---- RF13 · painel da plataforma (Ana é moderadora com 2FA) e da instituição (gestora do hospital) ----
+  await page.getByRole("link", { name: "Painel da plataforma" }).click();
+  await page.waitForURL("**/admin");
+  await page.locator(".kpi").first().waitFor();
+  ok("painel: 5 indicadores de engajamento", (await page.locator(".kpi").count()) === 5);
+  await page.locator(".chart svg").waitFor();
+  await shot("18-painel-engajamento");
+  await page.getByRole("button", { name: "Ver como tabela" }).click();
+  ok("gráfico tem tabela alternativa", (await page.locator("table.data tbody tr").count()) === 8);
+  await page.getByRole("tab", { name: "Auditoria" }).click();
+  await page.getByText(/Cadeia íntegra/).waitFor();
+  ok("auditoria: cadeia de hash íntegra", true);
+  ok("moderadora vê só moderação e comunidade", (await page.locator("table.data tbody").innerText()).includes("moderation.seal_approve"));
+  await page.getByRole("button", { name: "Exportar CSV assinado" }).click();
+  await page.getByText("Toda exportação precisa de justificativa").first().waitFor();
+  await page.fill("#justification", "Revisão mensal da moderação");
+  await page.getByRole("button", { name: "Exportar CSV assinado" }).click();
+  await page.getByText("Exportação pronta").waitFor();
+  await page.getByRole("button", { name: "Gerar links" }).first().click();
+  await page.getByRole("link", { name: "Baixar CSV" }).first().waitFor();
+  const csvHref = await page.getByRole("link", { name: "Baixar CSV" }).first().getAttribute("href");
+  const csvRes = await page.request.get(csvHref);
+  ok("CSV assinado baixado do S3 por URL pré-assinada", csvRes.status() === 200 && (await csvRes.text()).includes("cadeia íntegra"));
+  await shot("19-painel-auditoria");
+  await page.getByRole("tab", { name: "Qualidade" }).click();
+  await page.getByText("Usabilidade · problemas abertos por severidade").waitFor();
+  ok("qualidade lê a planilha heurística", (await page.locator("section[aria-label=Qualidade]").innerText()).includes("AVALIACAO_MVP-1.md"));
+  await shot("20-painel-qualidade");
+  await page.goto(BASE + `/instituicoes/${hospitalId}`);
+  await page.getByRole("link", { name: "Painel e auditoria" }).click();
+  await page.waitForURL(`**/instituicoes/${hospitalId}/painel`);
+  await page.locator(".kpi").first().waitFor();
+  ok("painel da instituição com k-anonimato (<10 pessoas)", (await page.locator(".kpis").innerText()).includes("Menos de 10 pessoas"));
+
   ok("sem erros de JS nem console.error", errors.length === 0, errors.join(" | ").slice(0, 1500));
   console.log(steps.join("\n"));
   await browser.close();

@@ -9,6 +9,7 @@ paths = [
   '''infra/garage/init\.sh''',
   '''compose\.yaml''',
   '''apps/core-api/src/main/resources/application-(dev|it)\.yml''',
+  '''apps/core-api/src/test/java/com/doctorexplorer/core/support/GarageContainer\.java''',
 ]
 regexes = [
   '''ZGV2LW9ubHktc2VjcmV0LWRldi1vbmx5LXNlY3JldC0xMjM0NTY=''',
