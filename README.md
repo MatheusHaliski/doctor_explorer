@@ -7,8 +7,9 @@ hospitalares. Casos clínicos anonimizados, chat e vídeo com criptografia ponta
 prontuário, receita e pedido de exame com ICP-Brasil, diretório hospitalar com RBAC. Conformidade com
 **CFM, LGPD e Anvisa** desde o primeiro dia.
 
-Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF05 e RF10–RF13 (identidade, selo
-CRM/RQE, perfil, grupos e feed, anonimização de mídia, LGPD, diretório hospitalar, RBAC, auditoria e painéis);
+Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF06 e RF10–RF13 (identidade, selo
+CRM/RQE, perfil, grupos e feed, anonimização de mídia, Delivery Service do chat E2EE, LGPD, diretório hospitalar,
+RBAC, auditoria e painéis); `packages/crypto` é o cliente MLS (RFC 9420) que roda no navegador;
 `apps/clinical-api` cobre o RF08 (prontuário SOAP no cofre clínico e fachada FHIR R4) e o RF09 (receita e pedido de
 exame em PDF/A com assinatura PAdES, QR e validador público); `apps/web` é a interface
 real em Next.js sobre as duas. Ordem de entrega em
@@ -76,6 +77,14 @@ Receitas (RF09): `DE_SIGNATURE_PROVIDER` escolhe quem assina. O padrão é `unav
 e o rascunho fica intacto) até o provedor ICP-Brasil em nuvem ser contratado (ADR-007); os perfis `dev` e `it`
 usam `simulated`, uma AC e uma TSA "ICP-Brasil SIMULADA" derivadas do segredo, marcadas "sem validade jurídica"
 no PDF e no validador. `DE_PUBLIC_BASE_URL` (padrão `http://localhost:3000`) vai no QR e no link do paciente.
+
+## Chat E2EE (RF06)
+
+O texto das conversas é cifrado e decifrado só nos aparelhos, com MLS (RFC 9420) via `ts-mls` em
+`packages/crypto` (`pnpm --filter @doctor-explorer/crypto test`). A core-api é o Delivery Service: ordena commits
+por época, entrega KeyPackages de uso único e Welcomes, e guarda bytes opacos na Cassandra com TTL da retenção
+(24 h, 7 ou 90 dias). Chaves ficam no IndexedDB do navegador, cifradas por uma chave não exportável; o primeiro
+aparelho gera a frase de recuperação, os seguintes são aprovados por um aparelho confiável ou pela frase.
 
 ## Web (`apps/web`)
 

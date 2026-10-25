@@ -7,6 +7,8 @@ const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:8080";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // RF06/RF07: cliente MLS em TypeScript do workspace (packages/crypto)
+  transpilePackages: ["@doctor-explorer/crypto"],
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${API_ORIGIN}/api/:path*` }];
   },

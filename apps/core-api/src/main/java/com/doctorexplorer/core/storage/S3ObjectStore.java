@@ -48,7 +48,7 @@ public class S3ObjectStore implements ObjectStore {
         this.presigner = pre.build();
         this.sse = p.serverSideEncryption();
         if (p.createBuckets()) {
-            for (String b : List.of(p.buckets().auditExports(), p.buckets().mediaQuarantine(), p.buckets().mediaPublished())) {
+            for (String b : List.of(p.buckets().auditExports(), p.buckets().mediaQuarantine(), p.buckets().mediaPublished(), p.buckets().chatAttachments())) {
                 try {
                     s3.headBucket(r -> r.bucket(b));
                 } catch (RuntimeException missing) {

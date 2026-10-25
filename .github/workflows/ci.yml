@@ -118,7 +118,7 @@ jobs:
           path: design/prototype/shots
 
   web:
-    name: apps/web · typecheck, lint, testes, build
+    name: apps/web + packages/crypto · typecheck, lint, testes, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -135,6 +135,9 @@ jobs:
           diff design/prototype/tokens.css apps/web/styles/tokens.css
           diff design/brand/logo-mark.svg apps/web/public/brand/logo-mark.svg
           for f in design/brand/backgrounds/*.webp; do cmp "$f" "apps/web/public/backgrounds/$(basename "$f")"; test -f "apps/web/public/backgrounds/thumbs/$(basename "$f")"; done
+      - name: "packages/crypto (cliente MLS do RF06): typecheck + vitest"
+        working-directory: packages/crypto
+        run: pnpm typecheck && pnpm test
       - name: typecheck + lint + vitest + next build
         working-directory: apps/web
         env:

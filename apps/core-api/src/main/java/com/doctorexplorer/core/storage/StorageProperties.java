@@ -12,16 +12,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record StorageProperties(String endpoint, String publicEndpoint, String region, String accessKey, String secretKey,
         boolean pathStyle, boolean createBuckets, boolean serverSideEncryption, Buckets buckets) {
 
-    public record Buckets(String auditExports, String mediaQuarantine, String mediaPublished) {
+    public record Buckets(String auditExports, String mediaQuarantine, String mediaPublished, String chatAttachments) {
         public Buckets {
             if (auditExports == null) auditExports = "de-audit-exports";
             if (mediaQuarantine == null) mediaQuarantine = "de-media-quarantine";
             if (mediaPublished == null) mediaPublished = "de-media-published";
+            if (chatAttachments == null) chatAttachments = "de-chat-attachments";
         }
     }
 
     public StorageProperties {
         if (region == null || region.isBlank()) region = "sa-east-1";
-        if (buckets == null) buckets = new Buckets(null, null, null);
+        if (buckets == null) buckets = new Buckets(null, null, null, null);
     }
 }

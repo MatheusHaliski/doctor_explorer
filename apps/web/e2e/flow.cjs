@@ -1,7 +1,7 @@
 /*
  * Teste ponta a ponta no navegador: web real (Next) + core-api (perfil dev) + PostgreSQL + Valkey.
  * Login de verdade, sem mock: cadastro → código do mailer dev (lido do log da API) → selo CRM/RQE na fonte
- * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → receita PAdES, validador público e link de uso único (RF09) → feed por eixos → LGPD → sudo →
+ * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → chat E2EE com MLS (RF06) → receita PAdES, validador público e link de uso único (RF09) → feed por eixos → LGPD → sudo →
  * tema escuro → mobile → logout → login.
  *
  * Uso: API_LOG=<log da core-api> BASE=http://localhost:3000 [SHOTS=dir] [PLAYWRIGHT_ROOT=<node_modules>] node e2e/flow.cjs
@@ -44,6 +44,7 @@ async function apiPost(page, path, body) {
 }
 async function registerVerified(ctx, { name, email, crm, specialties }) {
   const p = await ctx.newPage();
+  p.on("pageerror", (e) => errors.push(`[${name}] ` + String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
   await p.goto(BASE + "/cadastro");
   await p.fill("#displayName", name); await p.fill("#email", email); await p.fill("#birthDate", "1988-07-01"); await p.fill("#password", password);
   await p.check("#acceptTerms"); await p.check("#acceptPrivacy");
@@ -72,7 +73,7 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "pt-BR" });
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("pageerror", (e) => errors.push(String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
   // 4xx esperados (422 de validação, 401 de senha errada) aparecem como "Failed to load resource": não são erro da página
   page.on("console", (m) => { if (m.type() === "error" && !m.text().startsWith("Failed to load resource")) errors.push(`[${page.url()}] ${m.text()}`); });
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
@@ -240,6 +241,7 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
     await page.getByRole("button", { name: "Confirmar e assinar" }).click();
     await page.getByRole("heading", { name: "Validação" }).waitFor({ timeout: 30_000 });
   }
+  await page.getByText("Receita assinada.").waitFor();
   const rxCode = (await page.locator(".doc-code").innerText()).trim();
   ok("receita assinada com código de validação", /^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/.test(rxCode), rxCode);
   ok("assinatura PAdES-B-T", (await page.getByText(/PAdES-B-T/).count()) > 0);
@@ -254,7 +256,7 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
 
   const visitor = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR" });
   const vpage = await visitor.newPage();
-  vpage.on("pageerror", (e) => errors.push(String(e)));
+  vpage.on("pageerror", (e) => errors.push(String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
   await vpage.goto(BASE + "/validar");
   await vpage.fill("#code", rxCode.toLowerCase().replace(/-/g, " "));
   await vpage.getByRole("button", { name: "Validar" }).click();
@@ -355,6 +357,84 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await bruno.locator(".card", { hasText: "Dermatologia" }).getByRole("button", { name: "Entrar" }).click();
   await bruno.getByText("Pedido enviado ao moderador do grupo.").waitFor();
   ok("Bruno: vínculo pedido e entrada em grupo sem RQE fica pendente", true);
+
+  // RF06: chat E2EE (MLS) entre Ana e Bruno, cada um no seu navegador; depois um segundo aparelho da Ana entra pela frase
+  const activate = async (p) => {
+    await p.goto(BASE + "/mensagens");
+    await p.getByRole("button", { name: "Ativar neste aparelho" }).click();
+    const phrase = (await p.locator(".doc-code").innerText()).trim();
+    await p.getByRole("button", { name: "Anotei a frase" }).click();
+    await p.getByRole("heading", { name: "Mensagens", exact: true }).waitFor();
+    return phrase;
+  };
+  const anaPhrase = await activate(page);
+  ok("primeiro aparelho gera frase de recuperação", /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(anaPhrase));
+  await activate(bruno);
+  await page.getByRole("button", { name: "Nova conversa" }).click();
+  await page.fill("#contact-q", "Bruno Tav");
+  await page.locator(`button[data-user-id="${brunoId}"]`).click();
+  await page.getByRole("button", { name: "Começar conversa" }).click();
+  await page.waitForURL(/\/mensagens\/[0-9a-f-]{36}$/);
+  const chatId = page.url().split("/").pop();
+  await page.getByText("Criptografada ponta a ponta").first().waitFor();
+  await page.fill("#composer", "Oi Bruno, segue o caso da UTI 3");
+  await page.keyboard.press("Enter");
+  await page.locator(".bubble.own", { hasText: "segue o caso da UTI 3" }).waitFor();
+  await bruno.goto(BASE + "/mensagens/" + chatId);
+  await bruno.locator(".bubble", { hasText: "segue o caso da UTI 3" }).waitFor({ timeout: 30_000 });
+  ok("mensagem cifrada chega e é decifrada no aparelho do Bruno", true);
+  await bruno.fill("#composer", "Recebido, vejo agora");
+  await bruno.getByRole("button", { name: "Enviar" }).click();
+  await page.locator(".bubble:not(.own)", { hasText: "Recebido, vejo agora" }).waitFor({ timeout: 30_000 });
+  const wire = await page.evaluate((id) => fetch(`/api/v1/messaging/conversations/${id}/messages?after=0`).then((r) => r.text()), chatId);
+  ok("servidor só tem texto cifrado", wire.includes('"kind":"APP"') && !wire.includes("segue o caso") && !wire.includes("Recebido"));
+  await page.getByRole("button", { name: "Código de segurança" }).click();
+  await bruno.getByRole("button", { name: "Código de segurança" }).click();
+  const codeA = (await page.locator(".safety-code").innerText()).trim();
+  const codeB = (await bruno.locator(".safety-code").innerText()).trim();
+  ok("código de segurança igual nos dois aparelhos", /^(\d{5} ){11}\d{5}$/.test(codeA) && codeA === codeB, codeA);
+  await page.fill("#composer", "Paciente João Silva piorou");
+  await page.getByText("Parece haver paciente identificável").waitFor();
+  ok("aviso local de paciente identificável com atalho ao prontuário", (await page.getByRole("link", { name: "prontuário" }).last().getAttribute("href")) === "/prontuario/nova");
+  await page.fill("#composer", "");
+  await page.setInputFiles("#chat-file", { name: "exame.txt", mimeType: "text/plain", buffer: Buffer.from("Hb 9,1 g/dL") });
+  await page.locator(".bubble.own", { hasText: "exame.txt" }).waitFor({ timeout: 30_000 });
+  await bruno.locator(".bubble", { hasText: "exame.txt" }).waitFor({ timeout: 30_000 });
+  const [att] = await Promise.all([bruno.waitForEvent("download"), bruno.locator(".bubble", { hasText: "exame.txt" }).getByRole("button").click()]);
+  ok("anexo cifrado no aparelho e aberto do outro lado", fs.readFileSync(await att.path(), "utf8") === "Hb 9,1 g/dL");
+  await shot("08a-chat-e2ee");
+
+  const ana2Ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR" });
+  const ana2 = await ana2Ctx.newPage();
+  ana2.on("pageerror", (e) => errors.push("[Ana 2] " + String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
+  await ana2.goto(BASE + "/login");
+  await ana2.fill("#email", email); await ana2.fill("#password", password);
+  await ana2.getByRole("button", { name: "Entrar" }).click();
+  await ana2.waitForURL("**/feed");
+  await ana2.goto(BASE + "/mensagens");
+  await ana2.getByRole("button", { name: "Ativar neste aparelho" }).click();
+  await ana2.getByRole("heading", { name: "Aprove este aparelho" }).waitFor();
+  await ana2.fill("#recovery", anaPhrase.toLowerCase().replace(/-/g, " "));
+  await ana2.getByRole("button", { name: "Aprovar com a frase" }).click();
+  await ana2.getByRole("heading", { name: "Mensagens", exact: true }).waitFor({ timeout: 30_000 });
+  ok("segundo aparelho aprovado pela frase de recuperação", true);
+  await ana2.goto(BASE + "/mensagens/" + chatId);
+  // quem estiver com a conversa aberta adiciona o aparelho novo ao grupo MLS
+  await ana2.getByText("Nenhuma mensagem ainda").waitFor({ timeout: 45_000 });
+  await bruno.fill("#composer", "Para os dois aparelhos da Ana");
+  await bruno.getByRole("button", { name: "Enviar" }).click();
+  await ana2.locator(".bubble", { hasText: "Para os dois aparelhos da Ana" }).waitFor({ timeout: 30_000 });
+  await page.locator(".bubble", { hasText: "Para os dois aparelhos da Ana" }).waitFor({ timeout: 30_000 });
+  ok("aparelho novo entra no grupo e recebe só o que vem depois", (await ana2.locator(".bubble", { hasText: "segue o caso" }).count()) === 0);
+  if (SHOTS) await ana2.screenshot({ path: path.join(SHOTS, "08b-chat-segundo-aparelho.png"), fullPage: true });
+  await ana2Ctx.close();
+
+  await bruno.getByRole("button", { name: "Denunciar" }).click();
+  await bruno.locator(".bubble", { hasText: "segue o caso da UTI 3" }).getByRole("checkbox").check();
+  await bruno.fill("#report-reason", "Teste de denúncia encaminhada ao moderador");
+  await bruno.getByRole("button", { name: /^Encaminhar 1 mensagem/ }).click();
+  await bruno.getByText("Denúncia enviada à moderação").waitFor();
+  ok("denúncia encaminha o trecho decifrado escolhido por quem denuncia", true);
 
   // Ana aceita o vínculo na gestão; o perfil de Bruno mostra o convite para outras instituições que ela gere
   await page.goto(BASE + `/instituicoes/${hospitalId}/gestao`);
@@ -479,6 +559,11 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await brunoRow.getByRole("button", { name: "Aprovar entrada" }).click();
   await page.getByText("Bruno Tavares entrou em Dermatologia.").waitFor();
   ok("moderadora aprova selo e entrada em grupo", true);
+  const reportCard = page.locator("article.item", { hasText: "Teste de denúncia encaminhada ao moderador" }).last();
+  ok("denúncia chega à moderação só com o trecho encaminhado", (await reportCard.locator(".report-excerpt").innerText()).includes("segue o caso da UTI 3"));
+  await reportCard.locator("input").fill("Conversa entre colegas, sem violação.");
+  await reportCard.getByRole("button", { name: "Resolver" }).click();
+  await page.getByText("Denúncia resolvida.").waitFor();
   await carla.goto(BASE + "/perfil");
   await carla.getByText("CRM verificado na fonte oficial").waitFor();
   await bruno.goto(BASE + "/grupos");

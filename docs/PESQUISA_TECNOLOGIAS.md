@@ -14,7 +14,7 @@ decisão, alternativas, consequências, status. Status possíveis: **proposto ·
 | [ADR-007](#adr-007--assinatura-icp-brasil-em-nuvem) | Assinatura ICP-Brasil via provedor em nuvem | proposto |
 | [ADR-008](#adr-008--sessão-opaca-no-cliente-token-interno-curto) | Sessão opaca no cliente; token interno de 60 s entre serviços | aceito |
 | [ADR-009](#adr-009--fonte-de-verificação-de-crmrqe) | Fonte de verificação de CRM/RQE | proposto |
-| [ADR-010](#adr-010--mls-rfc-9420-para-chat-e2ee) | MLS (RFC 9420) para chat E2EE | proposto |
+| [ADR-010](#adr-010--mls-rfc-9420-para-chat-e2ee) | MLS (RFC 9420) para chat E2EE | aceito (web com ts-mls) |
 | [ADR-011](#adr-011--infraestrutura-gerenciada-na-aws-sa-east-1) | Infraestrutura gerenciada na AWS sa-east-1 | proposto |
 | [ADR-012](#adr-012--dcm4che-e-tesseract-na-anonimização) | dcm4che e Tesseract na anonimização | aceito |
 | [ADR-013](#adr-013--busca-por-raio-haversine-agora-postgis-depois) | Busca por raio: Haversine agora, PostGIS depois | aceito |
@@ -141,6 +141,15 @@ só como Delivery Service. Backup de chave opcional protegido por frase.
 
 **Consequências.** Sem moderação de conteúdo no servidor: denúncia pelo cliente. Nova tecnologia (Rust/WASM)
 na stack: revisão criptográfica externa obrigatória.
+
+**Atualização (MVP web, RF06).** No navegador o MVP usa **`ts-mls`** (TypeScript puro, RFC 9420 completo, MIT),
+em `packages/crypto`, em vez de OpenMLS/WASM: sem toolchain Rust no build do web e a mesma API nos testes
+(vitest) e no navegador. Suíte 1 (X25519, AES-128-GCM, SHA-256, Ed25519), credencial básica = id do aparelho e
+Authentication Service no cliente conferindo a chave de cada folha com o diretório de aparelhos. O mobile nativo
+segue com OpenMLS; a interoperabilidade entre as duas implementações entra no teste de interop quando o app
+existir. A biblioteca não passou por auditoria formal: continua valendo a revisão criptográfica externa antes
+do go-live. O backup de chaves por frase ficou para depois: a frase de recuperação do MVP só aprova um aparelho
+novo, não restaura histórico.
 
 ## ADR-011 · Infraestrutura gerenciada na AWS sa-east-1
 

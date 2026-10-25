@@ -283,3 +283,17 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .doc-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .auth.public .card { max-width: 560px; }
 @media (max-width: 480px) { .doc-facts { grid-template-columns: 1fr; } .doc-facts dd { margin-bottom: 6px; } }
+
+/* RF06 · chat E2EE: lista, bolhas, compositor e aviso de não lidas */
+.badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-pill); background: var(--brand); color: var(--on-brand); font-size: var(--text-xs); font-weight: 800; margin-left: 8px; }
+.chat-row.unread strong { font-weight: 800; }
+.inline-icon { width: 18px; height: 18px; vertical-align: -3px; }
+.chat-log { list-style: none; padding: var(--space-3); margin: var(--space-3) 0; display: grid; gap: var(--space-2); background: var(--surface-2); border-radius: var(--radius-md); max-height: 60vh; overflow-y: auto; }
+.bubble { display: flex; gap: 8px; align-items: flex-start; max-width: 80%; padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); justify-self: start; overflow-wrap: anywhere; }
+.bubble.own { justify-self: end; background: var(--brand-soft); border-color: transparent; }
+.composer { display: flex; gap: var(--space-2); align-items: flex-end; margin-top: var(--space-3); }
+.composer textarea { flex: 1; min-height: 48px; resize: vertical; }
+.chat-file:focus-visible + label.btn { outline: 3px solid var(--brand); outline-offset: 2px; }
+.safety-code { font-size: var(--text-md); letter-spacing: .05em; }
+@media (max-width: 480px) { .bubble { max-width: 95%; } .composer { flex-wrap: wrap; } .composer textarea { flex-basis: 100%; } }
+.report-excerpt { white-space: pre-wrap; font-size: var(--text-sm); background: var(--surface-2); padding: 8px; border-radius: var(--radius-sm); margin: 6px 0; }

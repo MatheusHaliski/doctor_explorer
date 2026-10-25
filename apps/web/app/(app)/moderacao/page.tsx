@@ -12,8 +12,9 @@ type Check = { source: string; checkedAt: string; outcome: string; reason: strin
 type SealItem = { userId: string; userName: string; crmNumber: string; crmUf: string; seal: string; since: string; specialties: Array<{ specialtyCode: string; rqe: string; confirmed: boolean }>; checks: Check[] };
 type GroupRequest = { userId: string; userName: string; specialtyCode: string; requestedAt: string };
 type Queue = { seals: SealItem[]; groupRequests: GroupRequest[] };
+type MessageReport = { id: string; reporter: string; reported: string | null; reportedUserId: string | null; reason: string; excerpt: string; createdAt: string };
 
-/** RF02 (US06) + RF04 · fila do moderador. Rota protegida pela API: papel MODERATOR/ADMIN + 2FA ativo. */
+/** RF02 (US06) + RF04 + RF06 · fila do moderador. Rota protegida pela API: papel MODERATOR/ADMIN + 2FA ativo. */
 export default function ModerationPage() {
   const session = useSession();
   const [queue, setQueue] = useState<Queue | null>(null);
@@ -22,7 +23,15 @@ export default function ModerationPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const toast = useToast();
 
-  const load = useCallback(async () => setQueue(await api.get<Queue>("/api/v1/admin/moderation/queue")), []);
+  const [reports, setReports] = useState<MessageReport[]>([]);
+  const load = useCallback(async () => {
+    const [q, r] = await Promise.all([
+      api.get<Queue>("/api/v1/admin/moderation/queue"),
+      api.get<{ items: MessageReport[] }>("/api/v1/admin/moderation/message-reports"),
+    ]);
+    setQueue(q);
+    setReports(r.items);
+  }, []);
   useAsyncEffect(load, setError, [load]);
 
   async function run(key: string, fn: () => Promise<string>) {
@@ -123,6 +132,31 @@ export default function ModerationPage() {
                   Aprovar entrada
                 </Button>
               </div>
+            ))}
+          </div>
+
+          <h2>Denúncias de mensagens ({reports.length})</h2>
+          <p className="text-sm text-text-2">O chat é cifrado ponta a ponta: o que aparece aqui é só o trecho que quem denunciou decidiu encaminhar.</p>
+          <div className="card list">
+            {reports.length === 0 && <p className="m-0 text-sm text-text-3">Nenhuma denúncia aberta.</p>}
+            {reports.map((r) => (
+              <article key={r.id} className="item">
+                <div className="text">
+                  <strong>
+                    {r.reporter} denunciou {r.reported ?? "a conversa"}
+                  </strong>
+                  <small>
+                    {formatDateTime(r.createdAt)} · {r.reason}
+                  </small>
+                  <pre className="report-excerpt">{r.excerpt}</pre>
+                  <Field id={`res-${r.id}`} label="Decisão">
+                    {(p) => <input {...p} className="input" value={reasons[r.id] ?? ""} onChange={(e) => setReasons({ ...reasons, [r.id]: e.target.value })} />}
+                  </Field>
+                </div>
+                <Button size="sm" variant="primary" loading={busy === `m-${r.id}`} onClick={() => run(`m-${r.id}`, async () => { await api.post(`/api/v1/admin/moderation/message-reports/${r.id}/resolve`, { resolution: reasons[r.id] ?? "" }); return "Denúncia resolvida."; })}>
+                  Resolver
+                </Button>
+              </article>
             ))}
           </div>
           <p className="mt-4 text-sm text-text-3">Para ocultar uma publicação, abra o caso: moderadores veem o botão “Ocultar” lá.</p>

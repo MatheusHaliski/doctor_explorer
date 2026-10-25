@@ -22,7 +22,7 @@ public class GarageContainer extends GenericContainer<GarageContainer> {
     public static final String ACCESS_KEY = "GKdedevdedevdedevdedevdede";
     public static final String SECRET_KEY = "de-dev-secret-de-dev-secret-de-dev-secret-de-dev-secret-0000000";
     static final String ADMIN_TOKEN = "dev-admin-token";
-    static final List<String> BUCKETS = List.of("de-audit-exports", "de-media-quarantine", "de-media-published");
+    static final List<String> BUCKETS = List.of("de-audit-exports", "de-media-quarantine", "de-media-published", "de-chat-attachments");
 
     private static final String CONFIG = """
             metadata_dir = "/var/lib/garage/meta"

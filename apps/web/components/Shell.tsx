@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { isDark, readCachedAppearance, setAppearance, subscribeAppearance } from "@/lib/appearance";
 import { Seal } from "./Seal";
@@ -14,7 +14,7 @@ const NAV: Array<{ sep?: string; href?: string; label?: string; icon?: string; s
   { href: "/feed", label: "Início", icon: "/icons/nav/inicio.svg" },
   { href: "/feed?kind=CASE", label: "Casos clínicos", icon: "/icons/nav/casos-clinicos.svg" },
   { href: "/grupos", label: "Grupos", icon: "/icons/nav/grupos.svg" },
-  { href: "/mensagens", label: "Mensagens", icon: "/icons/nav/mensagens.svg", soon: true },
+  { href: "/mensagens", label: "Mensagens", icon: "/icons/nav/mensagens.svg" },
   { href: "/chamadas", label: "Chamadas", icon: "/icons/nav/chamadas.svg", soon: true },
   { sep: "Clínico" },
   { href: "/prontuario", label: "Prontuário", icon: "/icons/nav/prontuario.svg" },
@@ -43,6 +43,7 @@ export function Shell({ user, seal, children }: Props) {
     api.put("/api/v1/me/preferences", { theme: next.theme }).catch(() => {}); // a troca já valeu na tela; a sincronização tenta de novo na próxima mudança
   };
   const close = () => setOpen(false);
+  const unread = useUnread();
 
   async function logout() {
     try {
@@ -86,6 +87,11 @@ export function Shell({ user, seal, children }: Props) {
                 <Link key={n.href} href={n.href!} aria-current={current(n.href!) ? "page" : undefined} onClick={close}>
                   <img src={n.icon} alt="" />
                   {n.label}
+                  {n.href === "/mensagens" && unread > 0 && (
+                    <span className="badge ml-auto" aria-label={`${unread} ${unread === 1 ? "conversa com mensagem nova" : "conversas com mensagens novas"}`}>
+                      {unread}
+                    </span>
+                  )}
                 </Link>
               ),
             )}
@@ -130,4 +136,24 @@ export function Shell({ user, seal, children }: Props) {
       </div>
     </>
   );
+}
+
+/** RF06 critério 9 · aviso de mensagem nova sem conteúdo: só a contagem de conversas com novidade. */
+function useUnread(): number {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      api
+        .get<{ conversations: number }>("/api/v1/messaging/unread")
+        .then((r) => alive && setN(r.conversations))
+        .catch(() => {});
+    void load();
+    const t = setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+  return n;
 }

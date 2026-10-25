@@ -213,6 +213,7 @@ export function SignedDocument({ doc, onChange }: { doc: DocumentView; onChange:
           </Button>
         </details>
       )}
+      {toast.el}
     </>
   );
 }

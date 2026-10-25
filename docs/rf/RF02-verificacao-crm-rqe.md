@@ -175,7 +175,7 @@ flowchart TD
 | API | `POST/GET /api/v1/credentials` (exige conta ativa) | ✅ |
 | Job | `ReverificationJob` (02:30, revoga selo se situação ≠ Regular) | ✅ |
 | Moderação | `ModerationService` + `ModerationController` (`GET /admin/moderation/queue`, `POST /admin/moderation/seals/{userId}/approve|reject`): fila ordenada por tempo em revisão, evidências, decisão gravada como `CredentialCheck` com fonte `moderador` e motivo (recusa exige ≥ 10 caracteres), e-mail ao médico sem dado sensível. Rota exige papel MODERATOR/ADMIN + 2FA (RF12) | ✅ |
-| Web | `apps/web/app/(app)/moderacao`: fila de selos (evidências, motivo, aprovar/recusar) e de pedidos de grupo; só aparece na navegação para moderadores; `/perfil` envia CRM/UF/RQE e mostra o estado do selo | ✅ |
+| Web | `apps/web/app/(app)/moderacao`: fila de selos (evidências, motivo, aprovar/recusar) e de pedidos de grupo (a mesma fila mostra as denúncias de mensagens do RF06); só aparece na navegação para moderadores; `/perfil` envia CRM/UF/RQE e mostra o estado do selo | ✅ |
 | Dev | `DevController` (só perfil `dev`): `POST /dev/roles/{role}` e `POST /dev/credentials/manual-review` para testar a fila sem mexer no banco | ✅ |
 | Auditoria | decisões do moderador gravam `moderation.seal_approve/reject` e `moderation.group_approve` na cadeia (RF13) | ✅ |
 | Testes | `ModerationIT` (PENDING → MANUAL_REVIEW após 24 h com fonte fora, moderador com 2FA aprova com evidência e e-mail, recusa exige motivo legível, 403 para quem não é moderador, aprovação de pedido de grupo); e2e `apps/web/e2e/flow.cjs` cobre o caminho no navegador | ✅ |

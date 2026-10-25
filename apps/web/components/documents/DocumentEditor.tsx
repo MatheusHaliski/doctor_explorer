@@ -325,6 +325,7 @@ export function DocumentEditor({ id }: { id: string }) {
 
       {step === "Entrega" && <SignedDocument doc={doc} onChange={apply} />}
       {dirty && step === "Itens" && <p className="text-sm text-text-3">Alterações ainda não salvas: “Salvar e revisar” grava o rascunho.</p>}
+      {toast.el}
     </div>
   );
 }
