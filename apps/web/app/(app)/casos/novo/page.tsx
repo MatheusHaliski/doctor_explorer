@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/api";
 import { KINDS, SPECIALTIES } from "@/lib/domain";
 import { Button, Field, Notice, ProblemAlert } from "@/components/ui";
+import { MediaAttach, type MediaView } from "@/components/media/MediaAttach";
 
 type Group = { specialtyCode: string; name: string; membership: string };
 
@@ -13,12 +14,12 @@ const SECTIONS: Array<[keyof Sections, string, string]> = [
   ["complaint", "Queixa e contexto", "Idade em faixa (ex.: 60 anos), sexo, comorbidades relevantes. Sem nome, data completa ou número de documento."],
   ["history", "História", "Evolução, medicações em uso, antecedentes."],
   ["exam", "Exame físico", "Achados objetivos."],
-  ["workup", "Exames complementares", "Resultados relevantes; imagens entram no RF05 com anonimização."],
+  ["workup", "Exames complementares", "Resultados relevantes. Imagens vão no bloco abaixo, com anonimização."],
   ["question", "Pergunta para os colegas", "O que você quer discutir? Isso vira o resumo no feed."],
 ];
 type Sections = { complaint: string; history: string; exam: string; workup: string; question: string };
 
-/** RF04 · publicar caso: bloqueio por identificador devolve 422 com todos os trechos e a correção sugerida. */
+/** RF04 · publicar caso: bloqueio por identificador devolve 422 com todos os trechos e a correção sugerida. RF05 · imagens anonimizadas e aprovadas. */
 export default function NewCasePage() {
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -26,6 +27,7 @@ export default function NewCasePage() {
   const [sections, setSections] = useState<Sections>({ complaint: "", history: "", exam: "", workup: "", question: "" });
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [media, setMedia] = useState<MediaView[]>([]);
 
   useEffect(() => {
     api
@@ -49,6 +51,7 @@ export default function NewCasePage() {
         ...form,
         ...sections,
         tags: form.tags.split(/[,\s]+/).map((t) => t.replace(/^#/, "")).filter(Boolean),
+        mediaIds: media.map((m) => m.id),
       });
       router.push(`/casos/${created.id}`);
     } catch (err) {
@@ -82,7 +85,7 @@ export default function NewCasePage() {
         <Field id="kind" label="Tipo" errors={errs("kind")}>
           {(p) => (
             <select {...p} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-              {["CASE", "QUESTION", "EDUCATION"].map((k) => (
+              {["CASE", "OPINION_REQUEST", "EDUCATION"].map((k) => (
                 <option key={k} value={k}>
                   {KINDS[k]}
                 </option>
@@ -106,6 +109,12 @@ export default function NewCasePage() {
         <Field key={key} id={key} label={label} help={help} errors={errs(key)}>
           {(p) => <textarea {...p} value={sections[key]} onChange={(e) => setSections({ ...sections, [key]: e.target.value })} />}
         </Field>
+      ))}
+      <MediaAttach approved={media} onChange={setMedia} dermatologyGroup={form.specialtyCode === "DERM"} />
+      {errs("mediaIds").map((m) => (
+        <Notice key={m} tone="danger">
+          {m}
+        </Notice>
       ))}
       <Field id="tags" label="Tags" help="Separe por vírgula ou espaço. Ex.: sepse, vasopressor">
         {(p) => <input {...p} type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />}

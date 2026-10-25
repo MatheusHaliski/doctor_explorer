@@ -138,7 +138,9 @@ function AuditTab({ scope }: { scope: DashboardScope }) {
   const [busy, setBusy] = useState<string | null>(null);
   const toast = useToast();
 
-  const loadExports = useCallback(async () => setExports((await api.get<{ exports: Export[] }>("/api/v1/audit/exports")).exports), []);
+  // exportações da mesma visão (plataforma ou esta instituição): o download confere papel e 2FA de novo
+  const exportsPath = scope.kind === "platform" ? "/api/v1/admin/audit/exports" : `/api/v1/institutions/${scope.id}/dashboard/audit/exports`;
+  const loadExports = useCallback(async () => setExports((await api.get<{ exports: Export[] }>(exportsPath)).exports), [exportsPath]);
   useAsyncEffect(
     async () => {
       setError(null);
@@ -159,8 +161,7 @@ function AuditTab({ scope }: { scope: DashboardScope }) {
     setBusy("export");
     setError(null);
     try {
-      const path = scope.kind === "platform" ? "/api/v1/admin/audit/exports" : `/api/v1/institutions/${scope.id}/dashboard/audit/exports`;
-      await api.post(path, { from: f.from, to: f.to, action: f.action || null, actorId: f.actorId || null, resourceType: f.resourceType || null, justification: f.justification, revealPatient: f.revealPatient });
+      await api.post(exportsPath, { from: f.from, to: f.to, action: f.action || null, actorId: f.actorId || null, resourceType: f.resourceType || null, justification: f.justification, revealPatient: f.revealPatient });
       toast.show("Exportação pronta: CSV assinado disponível por 24 h.");
       await loadExports();
     } catch (err) {
@@ -173,7 +174,7 @@ function AuditTab({ scope }: { scope: DashboardScope }) {
   async function getLinks(id: string) {
     setBusy(id);
     try {
-      const d = await api.get<{ csvUrl: string; signatureUrl: string; verify: string }>(`/api/v1/audit/exports/${id}/download`);
+      const d = await api.get<{ csvUrl: string; signatureUrl: string; verify: string }>(`${exportsPath}/${id}/download`);
       setDownload({ ...download, [id]: d });
       await loadExports();
     } catch (err) {

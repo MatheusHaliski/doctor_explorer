@@ -14,6 +14,7 @@ type Case = Post & {
   sections: { complaint: string; history: string; exam: string; workup: string; question: string };
   comments: Comment[];
   canRecordInEhr: boolean;
+  media: Array<{ id: string; url: string; width: number; height: number }>;
 };
 const LABELS: Record<string, string> = { complaint: "Queixa e contexto", history: "História", exam: "Exame físico", workup: "Exames complementares", question: "Pergunta" };
 
@@ -116,6 +117,16 @@ export function CaseView({ id }: { id: string }) {
               <p className="whitespace-pre-wrap text-text-2">{v}</p>
             </section>
           ))}
+        {c.media.length > 0 && (
+          <div className="case-media" aria-label="Imagens do caso (anonimizadas)">
+            {c.media.map((m) => (
+              <a key={m.id} href={m.url} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element -- URL pré-assinada de 10 min, só para quem pode ver o caso */}
+                <img src={m.url} width={m.width} height={m.height} alt="Imagem do caso, anonimizada e revisada pelo autor" loading="lazy" />
+              </a>
+            ))}
+          </div>
+        )}
         {c.tags.length > 0 && (
           <div className="tags mt-4">
             {c.tags.map((t) => (

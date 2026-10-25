@@ -32,6 +32,9 @@ public class AuditExport {
     @Column(nullable = false)
     private String filters;
 
+    @Column(name = "viewer_label")
+    private String viewerLabel;
+
     @Column(nullable = false)
     private String justification;
 
@@ -65,9 +68,10 @@ public class AuditExport {
 
     protected AuditExport() {}
 
-    public AuditExport(UUID requestedBy, String scope, String filters, String justification, boolean revealPatient) {
+    public AuditExport(UUID requestedBy, String viewerLabel, String scope, String filters, String justification, boolean revealPatient) {
         this.id = UuidV7.generate();
         this.requestedBy = requestedBy;
+        this.viewerLabel = viewerLabel;
         this.scope = scope;
         this.filters = filters;
         this.justification = justification;
@@ -111,6 +115,8 @@ public class AuditExport {
 
     public UUID getId() { return id; }
     public UUID getRequestedBy() { return requestedBy; }
+
+    public String getViewerLabel() { return viewerLabel; }
     public String getScope() { return scope; }
     public String getFilters() { return filters; }
     public String getJustification() { return justification; }

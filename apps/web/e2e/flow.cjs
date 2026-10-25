@@ -1,7 +1,7 @@
 /*
  * Teste ponta a ponta no navegador: web real (Next) + core-api (perfil dev) + PostgreSQL + Valkey.
  * Login de verdade, sem mock: cadastro → código do mailer dev (lido do log da API) → selo CRM/RQE na fonte
- * simulada → grupo → caso bloqueado por identificador → caso publicado → feed por eixos → LGPD → sudo →
+ * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → feed por eixos → LGPD → sudo →
  * tema escuro → mobile → logout → login.
  *
  * Uso: API_LOG=<log da core-api> BASE=http://localhost:3000 [SHOTS=dir] [PLAYWRIGHT_ROOT=<node_modules>] node e2e/flow.cjs
@@ -146,9 +146,34 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await page.fill("#complaint", "Vasopressor em dose alta há 36 h, lactato em queda lenta.");
   await page.fill("#question", "Alguém usaria corticoide neste ponto?");
   await page.fill("#tags", "sepse, vasopressor");
+
+  // RF05: imagem vai direto para a quarentena; prévia anonimizada; tarja manual; aprovação explícita
+  await page.setInputFiles("#media-file", path.join(__dirname, "fixtures", "lesao-com-laudo.jpg"));
+  await page.getByText("Revise a prévia (versão 1)").waitFor({ timeout: 90_000 });
+  const report = await page.locator(".media-review ul").innerText();
+  ok("prévia sem GPS e com texto coberto", /GPS/.test(report) && /trechos? de texto cobertos?/.test(report), report.replace(/\n/g, " | ").slice(0, 120));
+  await shot("07a-midia-previa");
+  await page.locator(".media-frame").scrollIntoViewIfNeeded();
+  const frame = await page.locator(".media-frame").boundingBox();
+  await page.mouse.move(frame.x + frame.width * 0.62, frame.y + frame.height * 0.48);
+  await page.mouse.down();
+  await page.mouse.move(frame.x + frame.width * 0.85, frame.y + frame.height * 0.9, { steps: 6 });
+  await page.mouse.up();
+  await page.getByRole("button", { name: "Aplicar tarjas" }).click();
+  await page.getByText("Revise a prévia (versão 2)").waitFor();
+  ok("tarja manual gera nova versão da prévia", (await page.getByText("1 tarja manual sua.").count()) === 1);
+  ok("aprovar exige confirmar a revisão", await page.getByRole("button", { name: "Aprovar imagem" }).isDisabled());
+  await page.getByLabel("Revisei a prévia e a lista do que foi removido").check();
+  await page.getByRole("button", { name: "Aprovar imagem" }).click();
+  await page.getByRole("list", { name: "Imagens aprovadas" }).locator("img").waitFor();
+  ok("imagem aprovada pronta para anexar", true);
+
   await page.getByRole("button", { name: "Publicar no grupo" }).click();
   await page.waitForURL(/\/casos\/[0-9a-f-]{36}$/);
   ok("caso publicado → página do caso", true);
+  const caseImg = page.locator(".case-media img");
+  await caseImg.waitFor();
+  ok("imagem anonimizada aparece no caso", await caseImg.evaluate((img) => img.complete && img.naturalWidth > 0));
   await shot("07-caso");
 
   // feed segmentado

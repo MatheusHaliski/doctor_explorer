@@ -6,6 +6,7 @@ import com.doctorexplorer.core.identity.service.LoggingMailer;
 import com.doctorexplorer.core.storage.ObjectStore;
 import com.doctorexplorer.core.storage.StorageProperties;
 import com.doctorexplorer.core.support.ApiClient;
+import com.doctorexplorer.core.support.TestCrm;
 import com.doctorexplorer.core.support.TestInfra;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Directory;
@@ -69,7 +70,7 @@ class MediaIT {
         ApiClient c = new ApiClient(mvc);
         c.register("midia+" + System.nanoTime() + "@example.org", PASSWORD);
         c.activateEmail(mailer);
-        String crm = "12" + String.format("%04d", System.nanoTime() % 10_000);
+        String crm = TestCrm.next("12");
         c.post("/api/v1/credentials", "{\"crmNumber\":\"" + crm + "\",\"crmUf\":\"PR\",\"specialties\":[{\"specialtyCode\":\"UTI\",\"rqe\":\"11111\"}]}");
         c.post("/api/v1/groups/UTI/join", null);
         return c;

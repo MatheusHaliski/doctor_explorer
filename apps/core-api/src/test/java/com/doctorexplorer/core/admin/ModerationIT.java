@@ -11,6 +11,7 @@ import com.doctorexplorer.core.identity.repo.UserAccounts;
 import com.doctorexplorer.core.identity.service.LoggingMailer;
 import com.doctorexplorer.core.identity.service.Totp;
 import com.doctorexplorer.core.support.ApiClient;
+import com.doctorexplorer.core.support.TestCrm;
 import com.doctorexplorer.core.support.TestInfra;
 import java.time.Instant;
 import java.util.UUID;
@@ -61,7 +62,7 @@ class ModerationIT {
     }
 
     private static String crm(String prefix) {
-        return prefix + String.format("%04d", System.nanoTime() % 10_000);
+        return TestCrm.next(prefix);
     }
 
     /** Moderador: papel global + 2FA ativo + login em duas etapas (a rota /admin exige os dois). */

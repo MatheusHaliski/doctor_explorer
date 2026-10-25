@@ -16,7 +16,7 @@ decisão, alternativas, consequências, status. Status possíveis: **proposto ·
 | [ADR-009](#adr-009--fonte-de-verificação-de-crmrqe) | Fonte de verificação de CRM/RQE | proposto |
 | [ADR-010](#adr-010--mls-rfc-9420-para-chat-e2ee) | MLS (RFC 9420) para chat E2EE | proposto |
 | [ADR-011](#adr-011--infraestrutura-gerenciada-na-aws-sa-east-1) | Infraestrutura gerenciada na AWS sa-east-1 | proposto |
-| [ADR-012](#adr-012--dcm4che-e-tesseract-na-anonimização) | dcm4che e Tesseract na anonimização | proposto |
+| [ADR-012](#adr-012--dcm4che-e-tesseract-na-anonimização) | dcm4che e Tesseract na anonimização | aceito |
 | [ADR-013](#adr-013--busca-por-raio-haversine-agora-postgis-depois) | Busca por raio: Haversine agora, PostGIS depois | aceito |
 | [ADR-014](#adr-014--auditoria-encadeada-na-cassandra) | Auditoria encadeada na Cassandra, exportação assinada com Ed25519 | aceito |
 | [ADR-015](#adr-015--garage-como-s3-de-dev-e-de-teste) | Garage como S3 de dev e de teste | aceito |
@@ -147,6 +147,16 @@ query.
 **Decisão.** **dcm4che** para desidentificação DICOM (PS3.15 Anexo E) e **Tesseract** (por) para OCR de
 texto gravado em imagem; detecção de rosto com modelo leve embarcado (sem enviar imagem a terceiros).
 Tudo roda em worker isolado, só em memória.
+
+**Como ficou (RF05).** dcm4che 5.35.2 (`dcm4che-deident` + leitor ImageIO DICOM, repositório Maven próprio do
+projeto); Tesseract 5 pela linha de comando (`stdin → tsv`, `por+eng`), sem JNI; libheif (`heif-info`,
+`heif-convert`) para HEIC, com temporários em `/dev/shm`; detecção de rosto com OpenCV 4.9 (openpnp, nativo
+embarcado no jar) e a cascata Haar frontal versionada em `resources/media`; metadata-extractor só para listar o
+que foi removido. A saída é sempre reconstruída a partir dos pixels. Os binários de sistema ficam na imagem base
+`infra/images/core-api-base`; o CI instala os mesmos pacotes. Ferramenta ausente ou com erro → mídia `FALHOU`
+(falha fechada). Trade-off aceito: Haar perde rostos de perfil e muito pequenos; por isso a revisão do autor é
+obrigatória e a tarja manual existe. Um detector DNN (YuNet) é o próximo passo se a avaliação de usabilidade
+mostrar rostos escapando.
 
 ## ADR-014 · Auditoria encadeada na Cassandra
 

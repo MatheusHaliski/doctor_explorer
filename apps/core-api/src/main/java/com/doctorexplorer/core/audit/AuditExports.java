@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AuditExports extends JpaRepository<AuditExport, UUID> {
 
-    List<AuditExport> findTop20ByRequestedByOrderByCreatedAtDesc(UUID requestedBy);
+    List<AuditExport> findTop20ByRequestedByAndViewerLabelOrderByCreatedAtDesc(UUID requestedBy, String viewerLabel);
 }

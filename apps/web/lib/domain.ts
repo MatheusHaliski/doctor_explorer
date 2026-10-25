@@ -12,7 +12,7 @@ export const SPECIALTIES: Record<string, string> = {
 
 export const KINDS: Record<string, string> = {
   CASE: "Caso clínico",
-  QUESTION: "Dúvida",
+  OPINION_REQUEST: "Pedido de parecer",
   EDUCATION: "Educação",
   PROTOCOL: "Protocolo",
   NOTICE: "Comunicado",

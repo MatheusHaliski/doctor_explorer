@@ -20,7 +20,9 @@ import org.springframework.stereotype.Component;
 /**
  * Gravação append-only na Cassandra. Para anexar: lê a cabeça do escopo (SERIAL), grava o evento com seq+1 e
  * avança a cabeça por LWT ({@code IF seq = ?}). Se outra instância avançou antes, o evento provisório é
- * apagado e a operação recomeça. Nada no código atualiza ou apaga evento já encadeado.
+ * apagado e a operação recomeça. A leitura ({@link #committed}) parte da cabeça e segue prevHash, então um
+ * provisório que ficou para trás (processo caiu antes de apagar) nunca entra na cadeia nem a "quebra".
+ * Nada no código atualiza ou apaga evento já encadeado.
  */
 @Component
 public class CassandraAuditStore {
@@ -31,7 +33,7 @@ public class CassandraAuditStore {
     private final CassandraSchema schema;
     private volatile Statements st;
 
-    private record Statements(PreparedStatement readHead, PreparedStatement insertHead, PreparedStatement advanceHead,
+    private record Statements(PreparedStatement readHead, PreparedStatement readHeadDay, PreparedStatement insertHead, PreparedStatement advanceHead,
             PreparedStatement insertEvent, PreparedStatement deleteEvent, PreparedStatement selectDay) {}
 
     public CassandraAuditStore(CqlSession session, CassandraSchema schema) {
@@ -47,6 +49,7 @@ public class CassandraAuditStore {
                     String ks = schema.keyspace();
                     st = new Statements(
                             session.prepare("SELECT seq, hash FROM " + ks + ".audit_chain_head WHERE scope = ?"),
+                            session.prepare("SELECT seq, hash, day FROM " + ks + ".audit_chain_head WHERE scope = ?"),
                             session.prepare("INSERT INTO " + ks + ".audit_chain_head (scope, seq, hash, day) VALUES (?, ?, ?, ?) IF NOT EXISTS"),
                             session.prepare("UPDATE " + ks + ".audit_chain_head SET seq = ?, hash = ?, day = ? WHERE scope = ? IF seq = ?"),
                             session.prepare("INSERT INTO " + ks + ".audit_event (scope, day, seq, id, at, actor_id, actor_roles, action, resource_type, "
@@ -92,15 +95,26 @@ public class CassandraAuditStore {
         throw new IllegalStateException("Não foi possível encadear o evento de auditoria em " + scope);
     }
 
-    /** Eventos do escopo nos dias do intervalo [from, to], em ordem de seq. */
-    public List<AuditEvent> range(String scope, LocalDate from, LocalDate to) {
+    /**
+     * Cadeia confirmada do escopo nos dias [from, to]. Lê do início da janela até o dia da cabeça (para ancorar a
+     * verificação no último seq gravado) e devolve só os eventos do intervalo pedido.
+     */
+    public AuditChain.Resolved committed(String scope, LocalDate from, LocalDate to) {
         Statements s = st();
-        List<AuditEvent> out = new ArrayList<>();
-        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
-            for (Row row : session.execute(s.selectDay().bind(scope, d))) out.add(map(row));
+        Row h = session.execute(s.readHeadDay().bind(scope).setConsistencyLevel(ConsistencyLevel.SERIAL)).one();
+        AuditChain.Head head = h == null ? null : new AuditChain.Head(h.getLong("seq"), h.getString("hash"));
+        LocalDate last = h == null || h.getLocalDate("day") == null || h.getLocalDate("day").isBefore(to) ? to : h.getLocalDate("day");
+        List<AuditEvent> rows = new ArrayList<>();
+        for (LocalDate d = from; !d.isAfter(last); d = d.plusDays(1)) {
+            for (Row row : session.execute(s.selectDay().bind(scope, d))) rows.add(map(row));
         }
-        out.sort((a, b) -> Long.compare(a.seq(), b.seq()));
-        return out;
+        // se a cabeça caiu dentro da janela, ao menos o último evento tem de estar lá (lista vazia não é "íntegra")
+        boolean headInWindow = h != null && h.getLocalDate("day") != null && !h.getLocalDate("day").isBefore(from);
+        long lowest = Math.min(rows.stream().mapToLong(AuditEvent::seq).min().orElse(Long.MAX_VALUE),
+                head == null ? Long.MAX_VALUE : headInWindow ? head.seq() : head.seq() + 1);
+        AuditChain.Resolved all = AuditChain.resolve(rows, head, lowest);
+        List<AuditEvent> inRange = all.events().stream().filter(e -> !e.day().isBefore(from) && !e.day().isAfter(to)).toList();
+        return new AuditChain.Resolved(inRange, all.verification());
     }
 
     public Optional<Long> headSeq(String scope) {

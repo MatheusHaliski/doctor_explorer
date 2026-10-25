@@ -416,3 +416,9 @@ create table media_asset (
 create index media_asset_owner_idx on media_asset (owner_id, created_at desc);
 create index media_asset_post_idx on media_asset (post_id) where post_id is not null;
 create index media_asset_cleanup_idx on media_asset (created_at) where original_deleted_at is null;
+
+-- V9 · A exportação guarda com que visão foi gerada (ex.: "platform:dpo", "institution:{id}:AUDITOR"). No download a
+-- visão é recalculada pela sessão atual e precisa ser a mesma: quem perdeu o papel, o vínculo ou o 2FA não recebe
+-- novas URLs (RF13). Exportações anteriores, sem visão, deixam de ser baixáveis (valiam 24 h).
+
+alter table audit_export add column viewer_label text;

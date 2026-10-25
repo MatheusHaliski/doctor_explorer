@@ -240,3 +240,13 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
   .post { grid-template-columns: 40px 1fr; }
 }
 @media (min-width: 861px) { .only-mobile { display: none !important; } }
+
+/* RF05 · mídia de casos: prévia com tarjas desenhadas pelo autor e grade das imagens aprovadas */
+.media-file:focus-visible + label.btn { outline: 3px solid var(--brand); outline-offset: 2px; }
+.media-frame { position: relative; max-width: 100%; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--line); touch-action: none; cursor: crosshair; user-select: none; background: var(--surface-2); }
+.media-frame img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.media-box { position: absolute; background: rgb(0 0 0 / 0.85); outline: 2px solid var(--warning); }
+.media-grid { list-style: none; padding: 0; margin: var(--space-3) 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-3); }
+.media-grid li { display: grid; gap: 6px; justify-items: start; }
+.media-grid img, .case-media img { width: 100%; border-radius: var(--radius-md); border: 1px solid var(--line); }
+.case-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); margin-top: var(--space-4); }
