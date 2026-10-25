@@ -70,7 +70,7 @@
       <!-- Ed25519 da assinatura da nota (assinatura eletrônica avançada do MVP) -->
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
-      <version>1.81</version>
+      <version>1.85.2</version>
     </dependency>
     <dependency>
       <!-- Fachada FHIR R4 (ADR-004): modelo, serialização e validação contra os perfis base -->

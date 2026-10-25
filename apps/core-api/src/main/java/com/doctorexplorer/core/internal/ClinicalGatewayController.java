@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +30,10 @@ public class ClinicalGatewayController {
     static final String PREFIX = "/api/v1/clinical";
     private static final Set<String> SAFE = Set.of("GET", "HEAD");
     private static final Set<String> FORWARDED_RESPONSE = Set.of("content-type", "etag", "last-modified", "location");
+    /** Só os recursos da clinical-api; segmentos simples (sem "..", "//", "%" nem "@"), então o destino é sempre a base. */
+    /** Consulta já codificada pelo navegador: só caracteres de URL, sem fragmento nem espaço. */
+    static final Pattern SAFE_QUERY = Pattern.compile("^[A-Za-z0-9._~%&=+:/,-]*$");
+    static final Pattern ALLOWED_PATH = Pattern.compile("^/(patients|compositions|terminology|fhir/r4)(/[A-Za-z0-9._-]+)*$");
 
     private final AccessService access;
     private final SessionSupport sessions;
@@ -50,6 +55,14 @@ public class ClinicalGatewayController {
     @RequestMapping(PREFIX + "/**")
     ResponseEntity<byte[]> forward(HttpServletRequest request) throws IOException {
         SessionPrincipal p = access.requireActive();
+        String path = request.getRequestURI().substring(request.getContextPath().length() + PREFIX.length());
+        if (!ALLOWED_PATH.matcher(path).matches() || path.contains("..")) {
+            throw new ApiProblemException(HttpStatus.NOT_FOUND, "nao-encontrado", "Não encontrado", "Esse recurso do prontuário não existe.");
+        }
+        String query = request.getQueryString();
+        if (query != null && !SAFE_QUERY.matcher(query).matches()) {
+            throw new ApiProblemException(HttpStatus.BAD_REQUEST, "consulta-invalida", "Consulta inválida", "Parâmetros da consulta inválidos.");
+        }
         var status = credentialing.status(p.userId());
         HttpSession session = request.getSession(false);
         Object sudo = session == null ? null : session.getAttribute(SessionSupport.SUDO_UNTIL);
@@ -58,9 +71,9 @@ public class ClinicalGatewayController {
         String token = tokens.issue(p.userId(), p.displayName(), status.crmNumber(), status.crmUf(), String.valueOf(status.seal()),
                 sudo instanceof Long l ? l : 0L, Boolean.TRUE.equals(mfa), !SAFE.contains(method), InternalTokens.CLINICAL);
 
-        String path = request.getRequestURI().substring(request.getContextPath().length() + PREFIX.length());
-        String query = request.getQueryString();
-        URI target = URI.create(props.baseUrl() + (path.isEmpty() ? "/" : path) + (query == null ? "" : "?" + query));
+        // esquema, host e porta vêm só da configuração; o caminho já passou pela lista de recursos
+        URI base = URI.create(props.baseUrl());
+        URI target = URI.create(base.getScheme() + "://" + base.getRawAuthority() + path + (query == null ? "" : "?" + query));
         byte[] body = request.getInputStream().readAllBytes();
         HttpRequest.Builder b = HttpRequest.newBuilder(target).timeout(props.timeout())
                 .header("Authorization", "DE-Internal " + token)

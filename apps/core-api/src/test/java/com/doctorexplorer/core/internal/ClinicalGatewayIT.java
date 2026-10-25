@@ -127,6 +127,15 @@ class ClinicalGatewayIT {
     }
 
     @Test
+    void onlyKnownClinicalResourcesAreForwarded() throws Exception {
+        ApiClient c = verifiedDoctor();
+        assertThat(c.get("/api/v1/clinical/actuator/env").getStatus()).isEqualTo(404);
+        assertThat(c.get("/api/v1/clinical/patients/..%2Factuator").getStatus()).isIn(400, 404);
+        assertThat(c.get("/api/v1/clinical/fhir/r4/Provenance?target=Composition/abc").getStatus()).isEqualTo(200);
+        assertThat(RECEIVED).singleElement().satisfies(r -> assertThat(r.path()).isEqualTo("/fhir/r4/Provenance?target=Composition/abc"));
+    }
+
+    @Test
     void writesStillNeedCsrf() throws Exception {
         ApiClient c = verifiedDoctor();
         MockHttpServletResponse noCsrf = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/clinical/patients")

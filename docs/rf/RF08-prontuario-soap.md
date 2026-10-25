@@ -205,7 +205,7 @@ flowchart TD
 | Migração | `clinical V1__ehr.sql` (cofre, médico, paciente cifrado, índice cego, encontro, nota SOAP versionada, gatilho de imutabilidade) | ✅ |
 | Domínio | `ClinicalVault`, `Practitioner`, `Patient`, `Encounter`, `SoapComposition` (RASCUNHO → ASSINADA → RETIFICADA, DESCARTADA) | ✅ |
 | Segurança | token interno (`InternalTokens` na core-api, `InternalTokenVerifier`/`InternalAuthFilter` na clinical-api), `VaultCrypto`, `BlindIndex`, `NoteSigner` | ✅ |
-| Integração | `ClinicalGatewayController` (`/api/v1/clinical/**`), `InternalController` (`/api/v1/internal/public-key`, `/api/v1/internal/audit`), `CoreAudit` | ✅ |
+| Integração | `ClinicalGatewayController` (`/api/v1/clinical/**`, só recursos conhecidos — `patients`, `compositions`, `terminology`, `fhir/r4` — com segmentos simples e consulta já codificada; esquema, host e porta vêm só da configuração), `InternalController` (`/api/v1/internal/public-key`, `/api/v1/internal/audit`), `CoreAudit` | ✅ |
 | Terminologia | CID-10 completo do DATASUS (14 496 códigos) em `terminology/cid10.tsv`, busca por código e palavras | ✅ |
 | FHIR | `FhirMapper`, `FhirController`, validação HAPI no CI; perfis BR da RNDS | ✅ / ⏳ RNDS |
 | Web | `/prontuario` (cofre), `/prontuario/pacientes/[id]`, `/prontuario/nova?post=` (a partir da discussão), `/prontuario/notas/[id]` (editor com rascunho a cada 5 s, CID-10, assinar com sudo, corrigir, versões) | ✅ |
