@@ -77,7 +77,7 @@
       <!-- RF09 · CMS/CAdES da assinatura PAdES, carimbo do tempo e certificados da AC simulada -->
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk18on</artifactId>
-      <version>1.85</version>
+      <version>1.86</version>
     </dependency>
     <dependency>
       <!-- RF09 · PDF/A-1b e assinatura incremental (PAdES) -->
