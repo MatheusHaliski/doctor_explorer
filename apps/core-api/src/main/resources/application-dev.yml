@@ -10,6 +10,8 @@ doctor-explorer:
     path-style: true
     create-buckets: false
     server-side-encryption: false
+  media:
+    cors-origins: http://localhost:3000
   app-secret: ${DE_APP_SECRET:ZGV2LW9ubHktc2VjcmV0LWRldi1vbmx5LXNlY3JldC0xMjM0NTY=}
   session:
     # Em dev sem TLS o navegador recusa cookie Secure com prefixo __Host-; use o perfil só em localhost.

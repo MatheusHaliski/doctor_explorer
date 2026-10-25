@@ -34,6 +34,9 @@ class IdentifierDetectorTest {
         assertThat(detector.scan(ok)).isEmpty();
         assertThat(detector.scan("PA 120/80, FC 98, SatO2 94% em 2 L/min; evolução de 3 semanas")).isEmpty();
         assertThat(detector.scan(null)).isEmpty();
+        // só nome com inicial maiúscula conta: "paciente sedado há 10 dias" é descrição, não nome
+        assertThat(detector.scan("Lesão sacral em paciente sedado há 10 dias")).isEmpty();
+        assertThat(detector.scan("PACIENTE EM VENTILAÇÃO mecânica")).isEmpty();
     }
 
     @Test

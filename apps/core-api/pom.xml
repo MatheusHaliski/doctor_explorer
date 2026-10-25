@@ -21,7 +21,18 @@
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jib.version>3.4.6</jib.version>
+    <dcm4che.version>5.35.2</dcm4che.version>
   </properties>
+
+  <repositories>
+    <repository>
+      <!-- dcm4che (desidentificação DICOM, ADR-012) só é publicado no repositório do projeto -->
+      <id>dcm4che</id>
+      <url>https://www.dcm4che.org/maven2/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+  </repositories>
 
   <dependencyManagement>
     <dependencies>
@@ -100,6 +111,29 @@
       <artifactId>s3</artifactId>
     </dependency>
     <dependency>
+      <!-- RF05 · DICOM: perfil básico de confidencialidade (PS3.15 E) e leitura de pixels para PNG (ADR-012) -->
+      <groupId>org.dcm4che</groupId>
+      <artifactId>dcm4che-deident</artifactId>
+      <version>${dcm4che.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.dcm4che</groupId>
+      <artifactId>dcm4che-imageio</artifactId>
+      <version>${dcm4che.version}</version>
+    </dependency>
+    <dependency>
+      <!-- RF05 · leitura de EXIF/XMP/IPTC/GPS para o relatório e para a orientação -->
+      <groupId>com.drewnoakes</groupId>
+      <artifactId>metadata-extractor</artifactId>
+      <version>2.19.0</version>
+    </dependency>
+    <dependency>
+      <!-- RF05 · detecção de rosto embarcada (Haar), sem enviar imagem a terceiros -->
+      <groupId>org.openpnp</groupId>
+      <artifactId>opencv</artifactId>
+      <version>4.9.0-0</version>
+    </dependency>
+    <dependency>
       <!-- Argon2id (Argon2PasswordEncoder usa BouncyCastle) -->
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
@@ -139,6 +173,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- RF05 · gera o corpus de teste com EXIF e GPS -->
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-imaging</artifactId>
+      <version>1.0.0-alpha6</version>
       <scope>test</scope>
     </dependency>
     <dependency>

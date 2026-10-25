@@ -9,6 +9,8 @@ import com.doctorexplorer.core.community.service.CommunityService.FeedFilter;
 import com.doctorexplorer.core.community.service.CommunityService.NewPost;
 import com.doctorexplorer.core.identity.repo.UserAccounts;
 import com.doctorexplorer.core.identity.web.SessionSupport;
+import com.doctorexplorer.core.media.MediaAsset;
+import com.doctorexplorer.core.media.MediaService;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CommunityController {
 
     public record PostRequest(String specialtyCode, String kind, String audience, String title, String complaint,
-            String history, String exam, String workup, String question, List<String> tags) {}
+            String history, String exam, String workup, String question, List<String> tags, List<UUID> mediaIds) {}
 
     public record CommentRequest(String body, boolean opinion) {}
 
@@ -50,12 +52,14 @@ public class CommunityController {
     private final AccessService access;
     private final SessionSupport sessions;
     private final UserAccounts accounts;
+    private final MediaService media;
 
-    public CommunityController(CommunityService community, AccessService access, SessionSupport sessions, UserAccounts accounts) {
+    public CommunityController(CommunityService community, AccessService access, SessionSupport sessions, UserAccounts accounts, MediaService media) {
         this.community = community;
         this.access = access;
         this.sessions = sessions;
         this.accounts = accounts;
+        this.media = media;
     }
 
     @GetMapping("/groups")
@@ -109,9 +113,12 @@ public class CommunityController {
     @PostMapping("/posts")
     ResponseEntity<Map<String, Object>> publish(@RequestBody PostRequest req) {
         UUID userId = access.requireVerifiedSeal().userId();
+        // RF05: só entram imagens do autor já anonimizadas e aprovadas por ele
+        List<MediaAsset> attached = media.requireAttachable(userId, req.mediaIds());
         CasePost p = community.publish(userId, new NewPost(req.specialtyCode(), parse(CasePost.Kind.class, req.kind()),
                 parse(CasePost.Audience.class, req.audience()), req.title() == null ? "" : req.title(), req.complaint(), req.history(),
                 req.exam(), req.workup(), req.question(), req.tags()));
+        media.attach(p.getId(), attached);
         return ResponseEntity.status(HttpStatus.CREATED).body(postView(p));
     }
 
@@ -122,6 +129,7 @@ public class CommunityController {
         Map<String, Object> v = new LinkedHashMap<>(postView(p));
         v.put("sections", Map.of("complaint", n(p.sections().complaint()), "history", n(p.sections().history()), "exam", n(p.sections().exam()),
                 "workup", n(p.sections().workup()), "question", n(p.sections().question())));
+        v.put("media", media.forPost(id)); // URLs de leitura curtas só depois de a comunidade liberar a publicação
         v.put("comments", community.comments(userId, id).stream().map(this::commentView).toList());
         v.put("canRecordInEhr", p.getAuthorId().equals(userId)); // "Registrar no prontuário" só para o autor (RF08)
         return v;
@@ -173,6 +181,7 @@ public class CommunityController {
         m.put("tags", p.tagList());
         m.put("comments", p.getCommentCount());
         m.put("opinions", p.getOpinionCount());
+        m.put("mediaCount", media.countForPost(p.getId()));
         m.put("authorId", p.getAuthorId());
         m.put("authorName", author.map(a -> a.getDisplayName()).orElse("Conta excluída"));
         m.put("createdAt", p.getCreatedAt().toString());

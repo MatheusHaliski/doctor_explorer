@@ -16,6 +16,14 @@ public interface ObjectStore {
 
     void delete(String bucket, String key);
 
+    /** Tamanho do objeto, se existir (HEAD). */
+    Optional<Long> size(String bucket, String key);
+
+    void copy(String fromBucket, String fromKey, String toBucket, String toKey);
+
+    /** CORS para o navegador enviar direto por URL pré-assinada (RF05). Em produção vem da infra; aqui só dev/it. */
+    void allowBrowserUploads(String bucket, java.util.List<String> origins);
+
     /** URL de leitura temporária; {@code downloadName} vira Content-Disposition de anexo quando informado. */
     URI presignGet(String bucket, String key, Duration ttl, String downloadName);
 

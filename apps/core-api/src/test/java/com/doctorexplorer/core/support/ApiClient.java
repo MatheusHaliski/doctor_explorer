@@ -44,6 +44,11 @@ public class ApiClient {
         return exchange(b);
     }
 
+    public MockHttpServletResponse delete(String path) throws Exception {
+        if (!jar.containsKey("XSRF-TOKEN")) get("/api/v1/auth/csrf");
+        return exchange(MockMvcRequestBuilders.delete(uri(path)).header("X-XSRF-TOKEN", jar.get("XSRF-TOKEN").getValue()));
+    }
+
     /** Cadastro completo com valores válidos; devolve a resposta para o teste inspecionar. */
     public MockHttpServletResponse register(String email, String password) throws Exception {
         return post("/api/v1/auth/register", """

@@ -78,3 +78,12 @@ doctor-explorer:
     path-style: ${DE_S3_PATH_STYLE:false}
     create-buckets: false
     server-side-encryption: true
+  # RF05 · anonimização de mídia. Tesseract e libheif vêm da imagem base (infra/images/core-api-base).
+  media:
+    max-image-bytes: 20971520
+    max-dicom-bytes: 52428800
+    max-pixels: 40000000
+    ocr-languages: por+eng
+    ocr-min-confidence: 30
+    # origem do web (PUT direto do navegador na quarentena), separada por vírgula
+    cors-origins: ${DE_MEDIA_CORS_ORIGINS:}

@@ -26,7 +26,7 @@ public class IdentifierDetector {
             new Rule("EMAIL", Pattern.compile("[\\w.+-]+@[\\w-]+\\.[\\w.-]+"), "Remova o e-mail."),
             new Rule("DATA_COMPLETA", Pattern.compile("\\b\\d{1,2}/\\d{1,2}/(?:19|20)\\d{2}\\b"), "Troque a data completa por idade ou intervalo (ex.: \"há 3 semanas\")."),
             new Rule("PRONTUARIO", Pattern.compile("(?i)\\b(?:prontu[áa]rio|registro|atendimento|RH|RG)\\s*(?:n[ºo°.]?\\s*)?[:#]?\\s*\\d{4,}\\b"), "Remova o número de prontuário/registro."),
-            new Rule("NOME_PACIENTE", Pattern.compile("(?i)\\b(?:paciente|sr\\.?|sra\\.?|senhor|senhora|dona)\\s+(\\p{Lu}\\p{Ll}+(?:\\s+(?:d[aeo]s?\\s+)?\\p{Lu}\\p{Ll}+)+)"), "Não cite o nome do paciente; use idade e sexo."));
+            new Rule("NOME_PACIENTE", Pattern.compile("\\b(?i:paciente|sr\\.?|sra\\.?|senhor|senhora|dona)\\s+(\\p{Lu}\\p{Ll}+(?:\\s+(?:d[aeo]s?\\s+)?\\p{Lu}\\p{Ll}+)+)"), "Não cite o nome do paciente; use idade e sexo."));
 
     public List<Match> scan(String text) {
         List<Match> matches = new ArrayList<>();
