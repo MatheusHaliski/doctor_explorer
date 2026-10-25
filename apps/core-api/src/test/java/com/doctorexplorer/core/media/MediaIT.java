@@ -17,6 +17,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -230,6 +231,63 @@ class MediaIT {
         assertThat(c.delete("/api/v1/media/" + waiting).getStatus()).isEqualTo(204);
         assertThat(assets.findById(waiting).orElseThrow().getState()).isEqualTo(MediaAsset.State.DESCARTADO);
         assertThat(objects.size(storage.buckets().mediaQuarantine(), w.getPreviewKey())).isEmpty();
+    }
+
+    @Test
+    void concurrentRedactionsNeverSilentlyDropAMask() throws Exception {
+        ApiClient c = verifiedDoctor();
+        UUID id = UUID.fromString(group(ID, uploadAndWait(c, "image/png", MediaSamples.png(200, 200), false)));
+        UUID owner = assets.findById(id).orElseThrow().getOwnerId();
+        List<MediaService.NormRegion> left = List.of(new MediaService.NormRegion(0.05, 0.05, 0.2, 0.2));
+        List<MediaService.NormRegion> right = List.of(new MediaService.NormRegion(0.7, 0.7, 0.2, 0.2));
+        List<String> outcomes = new java.util.concurrent.CopyOnWriteArrayList<>();
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var a = pool.submit(() -> attempt(() -> media.redact(owner, id, 1, left), outcomes));
+            var b = pool.submit(() -> attempt(() -> media.redact(owner, id, 1, right), outcomes));
+            a.get();
+            b.get();
+        }
+        // uma vence; a outra recebe "prévia desatualizada" em vez de apagar a tarja da primeira
+        assertThat(outcomes).containsExactlyInAnyOrder("ok", "previa-desatualizada");
+        MediaAsset m = assets.findById(id).orElseThrow();
+        assertThat(m.getPreviewVersion()).isEqualTo(2);
+        var img = javax.imageio.ImageIO.read(new ByteArrayInputStream(objects.get(storage.buckets().mediaQuarantine(), m.getPreviewKey()).orElseThrow().bytes()));
+        boolean leftBlack = (img.getRGB(30, 30) & 0xFFFFFF) == 0;
+        boolean rightBlack = (img.getRGB(170, 170) & 0xFFFFFF) == 0;
+        assertThat(leftBlack ^ rightBlack).as("exatamente a tarja aceita está na prévia").isTrue();
+    }
+
+    private static void attempt(Runnable r, List<String> outcomes) {
+        try {
+            r.run();
+            outcomes.add("ok");
+        } catch (com.doctorexplorer.core.web.ApiProblemException e) {
+            outcomes.add(e.type().toString().replaceAll(".*/", ""));
+        }
+    }
+
+    @Test
+    void processingInterruptedByARestartIsResumedAndGivesUpAfterThreeAttempts() throws Exception {
+        ApiClient c = verifiedDoctor();
+        byte[] png = MediaSamples.png(80, 80);
+        Started s = requestUpload(c, "image/png", png.length, false);
+        assertThat(put(s.uploadUrl(), "image/png", png)).isEqualTo(200);
+        // simula o reinício: objeto recebido, mas a tarefa em memória sumiu no meio do processamento
+        jdbc.update("update media_asset set state = 'PROCESSANDO', processing_attempts = 1, state_changed_at = now() - interval '11 minutes' where id = ?", s.id());
+        media.recoverStuck(Instant.now());
+        Instant limit = Instant.now().plusSeconds(60);
+        while (assets.findById(s.id()).orElseThrow().getState() != MediaAsset.State.AGUARDANDO_REVISAO && Instant.now().isBefore(limit)) Thread.sleep(200);
+        assertThat(assets.findById(s.id()).orElseThrow().getState()).isEqualTo(MediaAsset.State.AGUARDANDO_REVISAO);
+        assertThat(assets.findById(s.id()).orElseThrow().getProcessingAttempts()).isEqualTo(2);
+
+        Started t = requestUpload(c, "image/png", png.length, false);
+        assertThat(put(t.uploadUrl(), "image/png", png)).isEqualTo(200);
+        jdbc.update("update media_asset set state = 'PROCESSANDO', processing_attempts = 3, state_changed_at = now() - interval '11 minutes' where id = ?", t.id());
+        media.recoverStuck(Instant.now());
+        MediaAsset failed = assets.findById(t.id()).orElseThrow();
+        assertThat(failed.getState()).isEqualTo(MediaAsset.State.FALHOU);
+        assertThat(failed.getOriginalDeletedAt()).as("o S3 confirmou a exclusão").isNotNull();
+        assertThat(objects.size(storage.buckets().mediaQuarantine(), failed.getQuarantineKey())).isEmpty();
     }
 
     private static String group(Pattern p, String s) {

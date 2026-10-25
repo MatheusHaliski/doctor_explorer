@@ -7,6 +7,7 @@ paths:
   - apps/core-api/src/main/java/**/media/**
   - apps/core-api/src/main/resources/media/**
   - apps/core-api/src/main/resources/db/migration/V8__*.sql
+  - apps/core-api/src/main/resources/db/migration/V10__*.sql
   - apps/web/components/media/**
   - apps/web/lib/media.ts
   - infra/images/core-api-base/**
@@ -41,6 +42,12 @@ paths:
 | 5 | Prévia privada (GET pré-assinado de 5 min) com `previewVersion`; tarjas manuais em coordenadas 0–1 (`POST /redactions`) geram nova versão; aprovar exige `reviewed: true` **e** a versão que o autor viu (senão 409 `previa-desatualizada`). |
 | 6 | Na aprovação a prévia é copiada para o bucket publicado e o original e a prévia saem da quarentena. O job `MediaService.cleanup` (a cada 10 min) expira envios pendentes e apaga qualquer original com mais de 24 h, em qualquer estado. Publicar só aceita mídia do autor, aprovada e ainda não usada; a leitura no caso é por URL de 10 min, só depois de a comunidade liberar o post. |
 | 7 | `video/*` → 422 "Vídeo fica fora do MVP". |
+
+**Concorrência e retomada.** Tarjar, aprovar, descartar e anexar travam a linha da mídia (`SELECT … FOR UPDATE`):
+duas abas não sobrescrevem as tarjas uma da outra (a segunda recebe 409 `previa-desatualizada`). O original só é
+marcado como apagado quando o S3 confirma a exclusão; se falhar, o job de 24 h tenta de novo. Se a API reiniciar
+no meio, o job (que também roda logo na subida) retoma QUARENTENA parada há 2 min e PROCESSANDO parada há 10 min
+(`V10`: momento da última transição e número de tentativas); na terceira interrupção a mídia vai para FALHOU.
 
 **Falha fechada.** Qualquer erro de ferramenta (Tesseract ou libheif ausentes, tempo-limite, leitura) leva a
 `FALHOU`, apaga o original e não publica nada. Os binários vêm da imagem base `infra/images/core-api-base`.
@@ -214,11 +221,11 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Migração | `V8__midia.sql` (`media_asset` com os estados, versão da prévia, relatório, vínculo ao post, prazo do envio e data em que o original foi apagado) | ✅ |
+| Migração | `V8__midia.sql` (`media_asset` com os estados, versão da prévia, relatório, vínculo ao post, prazo do envio e data em que o original foi apagado), `V10__midia_retomada.sql` (última transição e tentativas) | ✅ |
 | Pipeline | `MediaFormat`, `ImageDecoder` (limite de pixels antes de decodificar, orientação EXIF explícita, HEIC por libheif), `DicomDeidentifier` (dcm4che, perfil básico, UIDs novos), `OcrRedactor` (Tesseract), `FaceBlurrer` (OpenCV, cascata Haar em `resources/media`), `DeidentificationPipeline` (falha fechada) | ✅ |
 | Serviço | `MediaService`: pedido de envio, conclusão com conferência de tamanho, processamento depois do commit, prévia privada, tarja manual com versão, aprovação com confirmação, descarte, anexo ao post, limpeza de 15 min / 24 h; auditoria `media.upload_request/processed/redaction/approve/discard/original_deleted` | ✅ |
 | API | `POST /media/uploads`, `POST /media/{id}/complete`, `GET /media/{id}`, `POST /media/{id}/redactions`, `POST /media/{id}/approve`, `DELETE /media/{id}` (selo VERIFIED); `POST /posts` com `mediaIds`; `GET /posts/{id}` com `media[]` (URLs de 10 min) e `mediaCount` no feed | ✅ |
 | Web | `components/media/MediaAttach.tsx` em `/casos/novo` (envio direto, estado do processamento, prévia com tarjas desenhadas, relatório em frases, "Revisei a prévia", aprovar/descartar), imagens no caso, contagem no feed; `lib/media.ts` | ✅ |
 | Infra | buckets `de-media-quarantine` e `de-media-published` (Garage no Compose e nos testes), CORS só para o web, `infra/images/core-api-base` com Tesseract e libheif; CI instala as mesmas ferramentas | ✅ |
 | Infra | Object Lock/ciclo de vida de 1 dia no bucket de quarentena, varredura antimalware | ⏳ produção |
-| Testes | `DeidentificationPipelineTest` (bytes ≠ declarado, limite de pixels, EXIF+GPS removidos e rotação, as 8 orientações, OCR com tarja, rosto real de domínio público borrado e mantido na dermatologia, DICOM sintético, HEIC real, tarja manual, ferramenta ausente falha fechada), `MediaIT` com Garage real (quarentena → revisão → tarja → aprovação → post → leitura; rejeição; DICOM; regras de envio e posse; limpeza de 24 h), `tests/media.test.ts`, e2e no navegador | ✅ |
+| Testes | `DeidentificationPipelineTest` (bytes ≠ declarado, limite de pixels, EXIF+GPS removidos e rotação, as 8 orientações, OCR com tarja, rosto real de domínio público borrado e mantido na dermatologia, DICOM sintético, HEIC real, tarja manual, ferramenta ausente falha fechada), `MediaIT` com Garage real (quarentena → revisão → tarja → aprovação → post → leitura; rejeição; DICOM; regras de envio e posse; limpeza de 24 h; duas tarjas simultâneas sem perda silenciosa; retomada após reinício e desistência na terceira tentativa), `tests/media.test.ts`, e2e no navegador | ✅ |

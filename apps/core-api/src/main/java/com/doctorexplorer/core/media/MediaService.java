@@ -54,6 +54,9 @@ public class MediaService {
     static final Duration VIEW_TTL = Duration.ofMinutes(10);
     static final Duration ORIGINAL_MAX_AGE = Duration.ofHours(24);
     static final int MAX_MANUAL_REGIONS = 50;
+    static final int MAX_ATTEMPTS = 3;
+    static final Duration QUEUED_STALE = Duration.ofMinutes(2);
+    static final Duration PROCESSING_STALE = Duration.ofMinutes(10);
 
     private final MediaAssets assets;
     private final ObjectStore objects;
@@ -134,7 +137,8 @@ public class MediaService {
     /** Worker: lê a quarentena em memória, anonimiza e grava a prévia privada. Falha fechada. */
     void process(UUID id) {
         MediaAsset a = tx.execute(s -> {
-            MediaAsset m = assets.findById(id).orElseThrow();
+            // a trava evita dois workers (reenvio, retomada em outra instância) processando a mesma mídia
+            MediaAsset m = assets.lockById(id).orElseThrow();
             if (m.getState() != MediaAsset.State.QUARENTENA) return null;
             m.processing();
             return assets.save(m);
@@ -163,12 +167,13 @@ public class MediaService {
     }
 
     private void endWithError(UUID id, MediaAsset a, boolean rejected, String reason) {
-        deleteQuietly(storage.buckets().mediaQuarantine(), a.getQuarantineKey());
+        boolean deleted = deleteQuietly(storage.buckets().mediaQuarantine(), a.getQuarantineKey());
         tx.executeWithoutResult(s -> {
-            MediaAsset m = assets.findById(id).orElseThrow();
+            MediaAsset m = assets.lockById(id).orElseThrow();
             if (rejected) m.rejected(reason);
             else m.failed(reason);
-            m.originalDeleted(Instant.now());
+            // só marca apagado se o S3 confirmou; senão o job de 24 h tenta de novo
+            if (deleted) m.originalDeleted(Instant.now());
             assets.save(m);
         });
         audit.record(AuditRecord.of("media.processed").actor(a.getOwnerId(), "").resource("media", id).outcome(rejected ? "rejected" : "failed"));
@@ -193,26 +198,29 @@ public class MediaService {
         if (regions == null || regions.isEmpty() || regions.size() > MAX_MANUAL_REGIONS) {
             throw new ValidationProblemException(List.of(new FieldProblem("regions", "Envie de 1 a " + MAX_MANUAL_REGIONS + " áreas para cobrir.")));
         }
-        MediaAsset a = owned(userId, id);
-        requireReview(a, previewVersion);
-        List<Region> px = new ArrayList<>();
         for (NormRegion r : regions) {
             if (r.w() <= 0 || r.h() <= 0 || r.x() < 0 || r.y() < 0 || r.x() > 1 || r.y() > 1) {
                 throw new ValidationProblemException(List.of(new FieldProblem("regions", "Cada área precisa estar dentro da imagem (coordenadas de 0 a 1).")));
             }
-            px.add(new Region((int) Math.floor(r.x() * a.getWidth()), (int) Math.floor(r.y() * a.getHeight()),
-                    (int) Math.ceil(r.w() * a.getWidth()), (int) Math.ceil(r.h() * a.getHeight())));
         }
-        String quarantine = storage.buckets().mediaQuarantine();
-        byte[] current = objects.get(quarantine, a.getPreviewKey()).orElseThrow().bytes();
-        objects.put(quarantine, a.getPreviewKey(), DeidentificationPipeline.applyManual(current, a.getOutputType(), px), a.getOutputType(), Map.of());
-        MediaAsset saved = tx.execute(s -> {
-            MediaAsset m = assets.findById(id).orElseThrow();
+        owned(userId, id);
+        // ler, tarjar e regravar a prévia com a linha travada: duas abas não sobrescrevem as tarjas uma da outra
+        tx.executeWithoutResult(s -> {
+            MediaAsset m = assets.lockById(id).orElseThrow();
+            requireReview(m, previewVersion);
+            List<Region> px = new ArrayList<>();
+            for (NormRegion r : regions) {
+                px.add(new Region((int) Math.floor(r.x() * m.getWidth()), (int) Math.floor(r.y() * m.getHeight()),
+                        (int) Math.ceil(r.w() * m.getWidth()), (int) Math.ceil(r.h() * m.getHeight())));
+            }
+            String quarantine = storage.buckets().mediaQuarantine();
+            byte[] current = objects.get(quarantine, m.getPreviewKey()).orElseThrow().bytes();
+            objects.put(quarantine, m.getPreviewKey(), DeidentificationPipeline.applyManual(current, m.getOutputType(), px), m.getOutputType(), Map.of());
             m.redacted(json.writeValueAsString(readReport(m).withManual(px.size())));
-            return assets.save(m);
+            assets.save(m);
+            audit.record(AuditRecord.of("media.redaction").actor(userId, "").resource("media", id).detail("regions", px.size()));
         });
-        audit.record(AuditRecord.of("media.redaction").actor(userId, "").resource("media", id).detail("regions", px.size()));
-        return view(userId, saved.getId());
+        return view(userId, id);
     }
 
     /** Aprovação exige a versão atual da prévia (o autor viu o que vai publicar) e a confirmação explícita. */
@@ -220,44 +228,53 @@ public class MediaService {
         if (!reviewed) {
             throw new ValidationProblemException(List.of(new FieldProblem("reviewed", "Confirme que revisou a prévia e a lista do que foi removido.")));
         }
-        MediaAsset a = owned(userId, id);
-        requireReview(a, previewVersion);
-        String ext = "image/jpeg".equals(a.getOutputType()) ? ".jpg" : ".png";
-        String publishedKey = "published/" + a.getId() + ext;
-        objects.copy(storage.buckets().mediaQuarantine(), a.getPreviewKey(), storage.buckets().mediaPublished(), publishedKey);
-        deleteQuietly(storage.buckets().mediaQuarantine(), a.getQuarantineKey());
-        deleteQuietly(storage.buckets().mediaQuarantine(), a.getPreviewKey());
-        tx.executeWithoutResult(s -> {
-            MediaAsset m = assets.findById(id).orElseThrow();
+        owned(userId, id);
+        MediaAsset approved = tx.execute(s -> {
+            MediaAsset m = assets.lockById(id).orElseThrow();
+            requireReview(m, previewVersion);
+            String ext = "image/jpeg".equals(m.getOutputType()) ? ".jpg" : ".png";
+            String publishedKey = "published/" + m.getId() + ext;
+            objects.copy(storage.buckets().mediaQuarantine(), m.getPreviewKey(), storage.buckets().mediaPublished(), publishedKey);
             m.approved(publishedKey, Instant.now());
-            m.originalDeleted(Instant.now());
-            assets.save(m);
+            audit.record(AuditRecord.of("media.approve").actor(userId, "").resource("media", id).detail("previewVersion", previewVersion));
+            return assets.save(m);
         });
-        audit.record(AuditRecord.of("media.approve").actor(userId, "").resource("media", id).detail("previewVersion", previewVersion));
+        deleteFromQuarantine(approved);
         return view(userId, id);
     }
 
     public void discard(UUID userId, UUID id) {
-        MediaAsset a = owned(userId, id);
-        if (a.getState() == MediaAsset.State.APROVADO && a.getPostId() != null) {
-            throw new ApiProblemException(HttpStatus.CONFLICT, "midia-publicada", "Mídia já publicada", "Ela faz parte de uma publicação; exclua a publicação para removê-la.");
-        }
-        if (a.getState().isFinal() && a.getState() != MediaAsset.State.APROVADO) return;
-        deleteQuietly(storage.buckets().mediaQuarantine(), a.getQuarantineKey());
-        if (a.getPreviewKey() != null) deleteQuietly(storage.buckets().mediaQuarantine(), a.getPreviewKey());
-        if (a.getPublishedKey() != null) deleteQuietly(storage.buckets().mediaPublished(), a.getPublishedKey());
-        tx.executeWithoutResult(s -> {
-            MediaAsset m = assets.findById(id).orElseThrow();
-            if (m.getState() == MediaAsset.State.APROVADO) {
-                // aprovada e não usada: some do bucket publicado e fica como descartada
-                assets.delete(m);
-                return;
+        owned(userId, id);
+        MediaAsset discarded = tx.execute(s -> {
+            MediaAsset m = assets.lockById(id).orElseThrow();
+            if (m.getState() == MediaAsset.State.APROVADO && m.getPostId() != null) {
+                throw new ApiProblemException(HttpStatus.CONFLICT, "midia-publicada", "Mídia já publicada",
+                        "Ela faz parte de uma publicação; exclua a publicação para removê-la.");
             }
+            if (m.getState().isFinal() && m.getState() != MediaAsset.State.APROVADO) return null;
+            if (m.getPublishedKey() != null && !deleteQuietly(storage.buckets().mediaPublished(), m.getPublishedKey())) {
+                throw new ApiProblemException(HttpStatus.SERVICE_UNAVAILABLE, "armazenamento-indisponivel", "Tente de novo",
+                        "Não foi possível remover a imagem agora. Nada mudou; tente de novo em instantes.");
+            }
+            // aprovada e não usada: some do bucket publicado e fica como descartada
             m.discarded();
-            m.originalDeleted(Instant.now());
-            assets.save(m);
+            audit.record(AuditRecord.of("media.discard").actor(userId, "").resource("media", id));
+            return assets.save(m);
         });
-        audit.record(AuditRecord.of("media.discard").actor(userId, "").resource("media", id));
+        if (discarded != null) deleteFromQuarantine(discarded);
+    }
+
+    /** Apaga original e prévia da quarentena; marca o original como apagado só se o S3 confirmou (critério 6). */
+    private void deleteFromQuarantine(MediaAsset m) {
+        String quarantine = storage.buckets().mediaQuarantine();
+        boolean original = deleteQuietly(quarantine, m.getQuarantineKey());
+        if (m.getPreviewKey() != null) deleteQuietly(quarantine, m.getPreviewKey());
+        if (original) {
+            tx.executeWithoutResult(s -> assets.findById(m.getId()).ifPresent(x -> {
+                x.originalDeleted(Instant.now());
+                assets.save(x);
+            }));
+        }
     }
 
     /** Antes de publicar: toda mídia citada é do autor, está aprovada e ainda não pertence a outra publicação. */
@@ -273,7 +290,8 @@ public class MediaService {
 
     public void attach(UUID postId, List<MediaAsset> media) {
         tx.executeWithoutResult(s -> media.forEach(m -> {
-            MediaAsset fresh = assets.findById(m.getId()).orElseThrow();
+            MediaAsset fresh = assets.lockById(m.getId()).orElseThrow();
+            if (fresh.getPostId() != null) throw new IllegalStateException("mídia já anexada");
             fresh.attachTo(postId);
             assets.save(fresh);
         }));
@@ -298,25 +316,52 @@ public class MediaService {
         return (int) assets.countByPostIdAndState(postId, MediaAsset.State.APROVADO);
     }
 
-    /** Job: envio não feito em 15 min expira; original com mais de 24 h é apagado em qualquer estado (critério 6). */
+    /**
+     * Job (também roda logo após subir): envio não feito em 15 min expira; original com mais de 24 h é apagado em
+     * qualquer estado e só sai da lista quando o S3 confirma (critério 6); processamento perdido num reinício é
+     * retomado, até {@value #MAX_ATTEMPTS} tentativas.
+     */
     @Scheduled(fixedDelayString = "${doctor-explorer.jobs.media-cleanup-ms:600000}")
     public void cleanup() {
         Instant now = Instant.now();
         for (MediaAsset m : assets.findByStateAndUploadExpiresAtBefore(MediaAsset.State.UPLOAD_PENDENTE, now)) {
-            deleteQuietly(storage.buckets().mediaQuarantine(), m.getQuarantineKey());
-            tx.executeWithoutResult(s -> assets.findById(m.getId()).ifPresent(x -> {
+            boolean deleted = deleteQuietly(storage.buckets().mediaQuarantine(), m.getQuarantineKey());
+            tx.executeWithoutResult(s -> assets.lockById(m.getId()).ifPresent(x -> {
+                if (x.getState() != MediaAsset.State.UPLOAD_PENDENTE) return;
                 x.expired();
-                x.originalDeleted(now);
+                if (deleted) x.originalDeleted(now);
                 assets.save(x);
             }));
         }
         for (MediaAsset m : assets.findByOriginalDeletedAtIsNullAndCreatedAtBefore(now.minus(ORIGINAL_MAX_AGE))) {
-            deleteQuietly(storage.buckets().mediaQuarantine(), m.getQuarantineKey());
+            if (!deleteQuietly(storage.buckets().mediaQuarantine(), m.getQuarantineKey())) continue;
             tx.executeWithoutResult(s -> assets.findById(m.getId()).ifPresent(x -> {
                 x.originalDeleted(now);
                 assets.save(x);
             }));
             audit.record(AuditRecord.of("media.original_deleted").resource("media", m.getId()).detail("reason", "24h"));
+        }
+        recoverStuck(now);
+    }
+
+    void recoverStuck(Instant now) {
+        for (MediaAsset m : assets.findByStateAndStateChangedAtBefore(MediaAsset.State.QUARENTENA, now.minus(QUEUED_STALE))) {
+            workers.submit(() -> process(m.getId()));
+        }
+        for (MediaAsset m : assets.findByStateAndStateChangedAtBefore(MediaAsset.State.PROCESSANDO, now.minus(PROCESSING_STALE))) {
+            boolean requeued = Boolean.TRUE.equals(tx.execute(s -> {
+                MediaAsset x = assets.lockById(m.getId()).orElseThrow();
+                if (x.getState() != MediaAsset.State.PROCESSANDO || x.getStateChangedAt().isAfter(now.minus(PROCESSING_STALE))) return false;
+                if (x.getProcessingAttempts() >= MAX_ATTEMPTS) return null;
+                x.requeue();
+                assets.save(x);
+                return true;
+            }));
+            if (requeued) {
+                workers.submit(() -> process(m.getId()));
+            } else if (m.getProcessingAttempts() >= MAX_ATTEMPTS) {
+                endWithError(m.getId(), m, false, "A anonimização foi interrompida " + MAX_ATTEMPTS + " vezes. Nada foi publicado; envie de novo.");
+            }
         }
     }
 
@@ -354,11 +399,14 @@ public class MediaService {
         return v;
     }
 
-    private void deleteQuietly(String bucket, String key) {
+    /** true se o S3 confirmou (apagar o que não existe também conta); false deixa para o job tentar de novo. */
+    private boolean deleteQuietly(String bucket, String key) {
         try {
             objects.delete(bucket, key);
+            return true;
         } catch (RuntimeException e) {
             log.warn("Não apagou {}/{}: {} (o job de 24 h tenta de novo)", bucket, key, e.toString());
+            return false;
         }
     }
 }

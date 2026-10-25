@@ -32,8 +32,11 @@ public class MediaAsset {
     private static final Map<State, Set<State>> NEXT = Map.of(
             State.UPLOAD_PENDENTE, EnumSet.of(State.QUARENTENA, State.EXPIRADO, State.DESCARTADO),
             State.QUARENTENA, EnumSet.of(State.PROCESSANDO, State.REJEITADO, State.DESCARTADO),
-            State.PROCESSANDO, EnumSet.of(State.AGUARDANDO_REVISAO, State.REJEITADO, State.FALHOU),
-            State.AGUARDANDO_REVISAO, EnumSet.of(State.AGUARDANDO_REVISAO, State.APROVADO, State.DESCARTADO));
+            // PROCESSANDO → QUARENTENA: retomada depois de reinício (o job reencontra a mídia parada)
+            State.PROCESSANDO, EnumSet.of(State.QUARENTENA, State.AGUARDANDO_REVISAO, State.REJEITADO, State.FALHOU),
+            State.AGUARDANDO_REVISAO, EnumSet.of(State.AGUARDANDO_REVISAO, State.APROVADO, State.DESCARTADO),
+            // aprovada e ainda não usada em publicação: o autor pode desistir
+            State.APROVADO, EnumSet.of(State.DESCARTADO));
 
     public static final Duration UPLOAD_TTL = Duration.ofMinutes(15);
 
@@ -102,6 +105,12 @@ public class MediaAsset {
     @Column(name = "original_deleted_at")
     private Instant originalDeletedAt;
 
+    @Column(name = "state_changed_at", nullable = false)
+    private Instant stateChangedAt = Instant.now();
+
+    @Column(name = "processing_attempts", nullable = false)
+    private int processingAttempts;
+
     protected MediaAsset() {}
 
     public MediaAsset(UUID ownerId, Kind kind, String declaredType, long declaredSize, boolean dermatology, Boolean blurFaces) {
@@ -121,11 +130,18 @@ public class MediaAsset {
             throw new IllegalStateException("mídia em " + state + " não pode ir para " + to);
         }
         state = to;
+        stateChangedAt = Instant.now();
     }
 
     public void received() { move(State.QUARENTENA); }
 
-    public void processing() { move(State.PROCESSANDO); }
+    public void processing() {
+        move(State.PROCESSANDO);
+        processingAttempts++;
+    }
+
+    /** Processamento interrompido (reinício): volta para a fila. */
+    public void requeue() { move(State.QUARENTENA); }
 
     public void readyForReview(String previewKey, String outputType, int width, int height, String reportJson, Instant now) {
         move(State.AGUARDANDO_REVISAO);
@@ -199,5 +215,7 @@ public class MediaAsset {
     public UUID getPostId() { return postId; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUploadExpiresAt() { return uploadExpiresAt; }
+    public Instant getStateChangedAt() { return stateChangedAt; }
+    public int getProcessingAttempts() { return processingAttempts; }
     public Instant getOriginalDeletedAt() { return originalDeletedAt; }
 }
