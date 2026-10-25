@@ -94,7 +94,7 @@
       <!-- RF09 · QR code do validador público -->
       <groupId>com.google.zxing</groupId>
       <artifactId>core</artifactId>
-      <version>3.5.3</version>
+      <version>3.5.4</version>
     </dependency>
     <dependency>
       <!-- Fachada FHIR R4 (ADR-004): modelo, serialização e validação contra os perfis base -->
