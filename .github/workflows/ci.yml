@@ -235,7 +235,7 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
       - name: Build Java para o CodeQL (core-api e clinical-api)
@@ -243,9 +243,9 @@ jobs:
         run: |
           (cd apps/core-api && mvn -B -ntp -DskipTests package)
           (cd apps/clinical-api && mvn -B -ntp -DskipTests package)
-      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/autobuild@v4
         if: matrix.language != 'java-kotlin'
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
 
   gitleaks:
     name: Gitleaks
@@ -284,15 +284,15 @@ jobs:
           trivy image --format sarif --output trivy-image-clinical.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 clinical-api:ci
       - name: Trivy no repositório
         run: trivy fs --format sarif --output trivy-fs.sarif --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 .
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image-clinical.sarif
           category: trivy-image-clinical
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
