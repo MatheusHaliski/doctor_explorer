@@ -18,6 +18,16 @@ spring:
     redis:
       host: ${DE_VALKEY_HOST:localhost}
       port: ${DE_VALKEY_PORT:6379}
+  # RF13 · auditoria append-only. Sem keyspace na sessão: o CassandraSchema cria o keyspace e usa nomes qualificados.
+  # Credenciais em produção pelo ambiente (SPRING_CASSANDRA_USERNAME/PASSWORD), nunca no .yml.
+  cassandra:
+    contact-points: ${DE_CASSANDRA_CONTACT_POINTS:localhost:9042}
+    local-datacenter: ${DE_CASSANDRA_DC:datacenter1}
+    connection:
+      connect-timeout: 10s
+      init-query-timeout: 10s
+    request:
+      timeout: 10s
   # Sessão: SessionConfig (@EnableRedisIndexedHttpSession, 60 min, namespace de:session)
   mvc:
     problemdetails:
@@ -54,3 +64,17 @@ doctor-explorer:
     privacy-version: "2026-10-24"
   jobs:
     erasure-cron: "0 15 3 * * *"
+  cassandra:
+    keyspace: ${DE_CASSANDRA_KEYSPACE:de_audit}
+    # produção: NetworkTopologyStrategy com 3 réplicas por região (ADR-011)
+    replication: "${DE_CASSANDRA_REPLICATION:{'class': 'NetworkTopologyStrategy', 'sa-east-1': 3}}"
+  # S3 (AWS em produção; credenciais pelo papel da tarefa, nunca no .yml). Buckets com Object Lock nas exportações.
+  storage:
+    endpoint: ${DE_S3_ENDPOINT:}
+    public-endpoint: ${DE_S3_PUBLIC_ENDPOINT:}
+    region: ${DE_S3_REGION:sa-east-1}
+    access-key: ${DE_S3_ACCESS_KEY:}
+    secret-key: ${DE_S3_SECRET_KEY:}
+    path-style: ${DE_S3_PATH_STYLE:false}
+    create-buckets: false
+    server-side-encryption: true

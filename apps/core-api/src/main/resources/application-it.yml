@@ -1,4 +1,11 @@
 doctor-explorer:
+  cassandra:
+    replication: "{'class': 'SimpleStrategy', 'replication_factor': 1}"
+  storage:
+    path-style: true
+    create-buckets: true
+    server-side-encryption: false
+    region: us-east-1
   app-secret: aXQtb25seS1zZWNyZXQtaXQtb25seS1zZWNyZXQtMTIzNDU2Nzg=
   session:
     cookie-name: de_session

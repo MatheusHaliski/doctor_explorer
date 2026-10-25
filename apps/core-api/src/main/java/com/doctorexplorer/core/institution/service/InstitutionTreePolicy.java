@@ -5,6 +5,10 @@ import com.doctorexplorer.core.institution.domain.InstitutionMembership;
 import com.doctorexplorer.core.institution.domain.InstitutionMembership.Role;
 import com.doctorexplorer.core.institution.repo.InstitutionMemberships;
 import com.doctorexplorer.core.institution.repo.Institutions;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -44,6 +48,19 @@ public class InstitutionTreePolicy {
             cur = institutions.findById(cur).map(Institution::getParentId).orElse(null);
         }
         return Optional.ofNullable(best);
+    }
+
+    /** A instituição e todas as descendentes (BFS, até 10 níveis): escopo de painéis e auditoria da árvore (RF13). */
+    public List<UUID> subtree(UUID rootId) {
+        List<UUID> out = new ArrayList<>();
+        Deque<UUID> queue = new ArrayDeque<>(List.of(rootId));
+        while (!queue.isEmpty() && out.size() < 10_000) {
+            UUID cur = queue.poll();
+            if (out.contains(cur)) continue;
+            out.add(cur);
+            institutions.findByParentId(cur).forEach(child -> queue.add(child.getId()));
+        }
+        return out;
     }
 
     /** Quem concede precisa gerir membros e só concede papel igual ou abaixo do seu. */

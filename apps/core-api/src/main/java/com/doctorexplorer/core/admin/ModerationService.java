@@ -1,5 +1,7 @@
 package com.doctorexplorer.core.admin;
 
+import com.doctorexplorer.core.audit.AuditLog;
+import com.doctorexplorer.core.audit.AuditRecord;
 import com.doctorexplorer.core.community.domain.GroupMembership;
 import com.doctorexplorer.core.community.repo.GroupMemberships;
 import com.doctorexplorer.core.community.repo.SpecialtyGroups;
@@ -43,9 +45,10 @@ public class ModerationService {
     private final SpecialtyGroups groups;
     private final CommunityService community;
     private final Mailer mailer;
+    private final AuditLog audit;
 
     public ModerationService(ProfessionalProfiles profiles, SpecialtyClaims claims, CredentialChecks checks, UserAccounts accounts,
-            GroupMemberships groupMemberships, SpecialtyGroups groups, CommunityService community, Mailer mailer) {
+            GroupMemberships groupMemberships, SpecialtyGroups groups, CommunityService community, Mailer mailer, AuditLog audit) {
         this.profiles = profiles;
         this.claims = claims;
         this.checks = checks;
@@ -54,6 +57,7 @@ public class ModerationService {
         this.groups = groups;
         this.community = community;
         this.mailer = mailer;
+        this.audit = audit;
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +102,7 @@ public class ModerationService {
                     + ". Um moderador revisou seus dados e não conseguiu confirmar o CRM. Motivo: " + text + " Corrija os dados no seu perfil e envie de novo.");
         }
         profiles.save(p);
+        audit.record(AuditRecord.of(approve ? "moderation.seal_approve" : "moderation.seal_reject").resource("user_account", userId).justification(text));
         Map<String, Object> v = new LinkedHashMap<>(sealView(p));
         v.put("decidedBy", moderatorId);
         return v;
@@ -105,7 +110,9 @@ public class ModerationService {
 
     @Transactional
     public GroupMembership approveGroupRequest(String specialtyCode, UUID userId) {
-        return community.approve(specialtyCode, userId);
+        GroupMembership m = community.approve(specialtyCode, userId);
+        audit.record(AuditRecord.of("moderation.group_approve").resource("user_account", userId).detail("group", specialtyCode));
+        return m;
     }
 
     private Map<String, Object> sealView(ProfessionalProfile p) {

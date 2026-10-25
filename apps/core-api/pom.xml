@@ -32,6 +32,13 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>2.31.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -83,6 +90,16 @@
       <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
     <dependency>
+      <!-- RF13 · auditoria append-only com hash encadeado (driver DataStax via starter do Boot) -->
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cassandra</artifactId>
+    </dependency>
+    <dependency>
+      <!-- Armazenamento de objetos: exportações de auditoria (RF13) e mídia (RF05). S3 em produção, Garage/MinIO em dev/it -->
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+    </dependency>
+    <dependency>
       <!-- Argon2id (Argon2PasswordEncoder usa BouncyCastle) -->
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
@@ -124,9 +141,24 @@
       <artifactId>testcontainers-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-cassandra</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <!-- RF13: a planilha da avaliação heurística (fonte única em docs/) vai junto para o painel de qualidade -->
+        <directory>../../docs/usabilidade</directory>
+        <targetPath>usabilidade</targetPath>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>

@@ -189,6 +189,7 @@ Registros clínicos (RF08, RF09) **não** entram na saga: ficam no cofre clínic
 | Serviço | "Seus dados" inclui as preferências de aparência (`arteDeFundo`, `intensidadeDoVeu`), além de idioma, tema, fonte e modo plantão | ✅ |
 | Serviço | `PrivacyService`: consentimentos (estado = evento mais recente, padrão desligado), "seus dados", exportação JSON v1, compartilhamento (operadores), exclusão com carência + e-mail, canal do Encarregado | ✅ |
 | Serviço | `ErasureSaga` idempotente: credencial, 2FA, verificação, preferências, perfil/RQE, exportações, auditoria de login, sessões e limites no Valkey, **DEK destruída**, lápide anônima; `consent_event`/`terms_acceptance` ficam como prova (Art. 16, I) | ✅ |
+| Auditoria | `PrivacyService` grava `privacy.consent_change`, `privacy.export_request`, `privacy.deletion_request`, `privacy.dpo_request/answer` (RF13). Eventos de auditoria ficam após a eliminação da conta, só com o id pseudônimo (Art. 16, I e Art. 37) | ✅ |
 | Serviço | passos S3 (mídia) e Cassandra (mensagens) da saga | ⏳ com RF05/RF06 |
 | Serviço | ZIP cifrado por URL pré-assinada (hoje: JSON autenticado por 24 h) | ⏳ com o S3 (RF05) |
 | Job | `ErasureJob` (03:15, cron configurável) | ✅ |

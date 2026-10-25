@@ -56,6 +56,15 @@ Contraste com a arte mais forte (véu 20 %) e o painel a 92 %, nos pixels mais c
 
 Um véu sozinho não basta: sem o painel, `text-3` no tema claro cai para 3,4:1 mesmo com véu de 80 %.
 
+## Gráficos (RF13)
+
+- Séries categóricas: `--series-1` (azul `#2a78d6` / escuro `#3987e5`) e `--series-2` (laranja `#eb6834` /
+  escuro `#d95926`), nessa ordem fixa. Validadas com o script do método de visualização: separação para
+  daltonismo ΔE 24,7 (claro) e 26,8 (escuro), contraste ≥ 3:1 com a superfície.
+- Texto nunca usa a cor da série; legenda sempre visível com duas séries; dica no hover e no foco; tabela
+  alternativa em todo gráfico; colunas de no máximo 24 px com topo arredondado de 4 px e 2 px entre colunas.
+- Célula suprimida por k-anonimato (menos de 10 pessoas) não vira marca: aparece "<10" e "suprimido" na tabela.
+
 ## Tabela de contraste (gerada por `scripts/wcag_contrast.py --md`)
 
 | Par | Uso | Mínimo | Claro | Escuro |

@@ -7,7 +7,7 @@ import org.springframework.core.env.Profiles;
 
 /** Recusa subir sem {@code DE_APP_SECRET} fora dos perfis dev/it. */
 @Configuration
-@EnableConfigurationProperties(AppSecretProperties.class)
+@EnableConfigurationProperties({AppSecretProperties.class, com.doctorexplorer.core.audit.AuditProperties.class, com.doctorexplorer.core.storage.StorageProperties.class})
 public class AppSecretValidator {
 
     public AppSecretValidator(AppSecretProperties props, Environment env) {

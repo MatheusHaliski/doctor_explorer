@@ -42,8 +42,10 @@ public class SecurityConfig {
                         "/api/v1/auth/reactivate", "/api/v1/auth/logout").permitAll()
                 .requestMatchers("/api/v1/ping", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/institutions", "/api/v1/institutions/*", "/api/v1/profiles/*").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/audit/public-key").permitAll()
                 // papéis sensíveis: papel + 2FA ativo. A auditoria também é lida pelo Encarregado (RF13, recorte de privacidade).
-                .requestMatchers("/api/v1/admin/audit/**", "/api/v1/admin/audit").access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN", "DPO"))
+                .requestMatchers("/api/v1/admin/audit/**", "/api/v1/admin/audit", "/api/v1/admin/dashboard/**")
+                        .access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN", "DPO"))
                 .requestMatchers("/api/v1/admin/**").access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN"))
                 .requestMatchers("/api/v1/privacy/dpo/**").access(new MfaRequiredAuthorizationManager("DPO"))
                 // o resto exige sessão; selo e estado da conta são checados no domínio

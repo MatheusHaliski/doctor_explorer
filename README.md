@@ -45,10 +45,10 @@ história em [docs/TRELLO_BACKLOG.md](docs/TRELLO_BACKLOG.md).
 ## Backend (`apps/core-api`)
 
 ```bash
-docker compose up -d                                   # PostGIS 17, Valkey 9, Garage (+ `--profile full` para Cassandra)
+docker compose up -d                                   # PostGIS 17, Valkey 9, Cassandra 5 (auditoria) e Garage (S3) com buckets
 cd apps/core-api
 mvn test                                               # unitários, sem Docker
-mvn verify                                             # + *IT com Testcontainers
+mvn verify                                             # + *IT com Testcontainers (Docker: PostGIS, Valkey, Cassandra, Garage)
 mvn spring-boot:run -Dspring-boot.run.profiles=dev     # http://localhost:8080/api/v1/ping
 python3 ../../scripts/gen_schema.py                    # regenera schema.sql depois de uma migração nova
 ```

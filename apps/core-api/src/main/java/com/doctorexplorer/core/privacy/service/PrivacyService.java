@@ -1,5 +1,7 @@
 package com.doctorexplorer.core.privacy.service;
 
+import com.doctorexplorer.core.audit.AuditLog;
+import com.doctorexplorer.core.audit.AuditRecord;
 import com.doctorexplorer.core.config.AppSecretProperties;
 import com.doctorexplorer.core.credentialing.repo.ProfessionalProfiles;
 import com.doctorexplorer.core.credentialing.repo.SpecialtyClaims;
@@ -53,9 +55,11 @@ public class PrivacyService {
     private final AppSecretProperties props;
     private final ObjectMapper json = new ObjectMapper();
 
+    private final AuditLog audit;
+
     public PrivacyService(ConsentEvents consents, DataExportRequests exports, DpoTickets tickets, UserAccounts accounts,
             UserPreferences preferences, TermsAcceptances acceptances, ProfessionalProfiles profiles, SpecialtyClaims claims,
-            Mailer mailer, AppSecretProperties props) {
+            Mailer mailer, AppSecretProperties props, AuditLog audit) {
         this.consents = consents;
         this.exports = exports;
         this.tickets = tickets;
@@ -66,6 +70,7 @@ public class PrivacyService {
         this.claims = claims;
         this.mailer = mailer;
         this.props = props;
+        this.audit = audit;
     }
 
     /** Estado atual por finalidade: o evento mais recente; sem evento = desligado (padrão de privacidade). */
@@ -84,6 +89,7 @@ public class PrivacyService {
     @Transactional
     public ConsentView setConsent(UUID userId, ConsentPurpose purpose, boolean granted, String ipHash) {
         ConsentEvent e = consents.save(new ConsentEvent(userId, purpose, granted, props.terms().privacyVersion(), ipHash));
+        audit.record(AuditRecord.of("privacy.consent_change").actor(userId, "").resource("consent", purpose).detail("granted", granted).ip(ipHash));
         return new ConsentView(purpose, e.isGranted(), e.getOccurredAt());
     }
 
@@ -119,7 +125,9 @@ public class PrivacyService {
     @Transactional
     public DataExportRequest requestExport(UUID userId) {
         try {
-            return exports.save(new DataExportRequest(userId, json.writeValueAsString(myData(userId))));
+            DataExportRequest r = exports.save(new DataExportRequest(userId, json.writeValueAsString(myData(userId))));
+            audit.record(AuditRecord.of("privacy.export_request").actor(userId, "").resource("data_export", r.getId()));
+            return r;
         } catch (RuntimeException e) {
             throw new ApiProblemException(HttpStatus.INTERNAL_SERVER_ERROR, "exportacao-falhou", "Não foi possível gerar a cópia",
                     "Tente de novo em alguns minutos ou fale com o Encarregado.");
@@ -143,6 +151,7 @@ public class PrivacyService {
         UserAccount a = accounts.findById(userId).orElseThrow();
         a.requestDeletion(Instant.now());
         accounts.save(a);
+        audit.record(AuditRecord.of("privacy.deletion_request").actor(userId, "").resource("user_account", userId).detail("graceEndsAt", a.getGraceEndsAt()));
         String until = DateTimeFormatter.ofPattern("dd/MM/yyyy").format(a.getGraceEndsAt().atOffset(ZoneOffset.UTC));
         mailer.send(a.getEmail(), "Pedido de exclusão recebido · Doctor Explorer",
                 "Olá, " + a.getDisplayName() + ".\n\nRecebemos seu pedido de exclusão. Você pode reativar a conta entrando de novo até "
@@ -156,7 +165,9 @@ public class PrivacyService {
         if (message == null || message.isBlank()) {
             throw new ApiProblemException(HttpStatus.UNPROCESSABLE_CONTENT, "mensagem-vazia", "Descreva o pedido", "Escreva o que você precisa; não inclua dados de pacientes.");
         }
-        return tickets.save(new DpoTicket(userId, type, message.trim()));
+        DpoTicket t = tickets.save(new DpoTicket(userId, type, message.trim()));
+        audit.record(AuditRecord.of("privacy.dpo_request").actor(userId, "").resource("dpo_ticket", t.getProtocol()).detail("type", type));
+        return t;
     }
 
     @Transactional(readOnly = true)
@@ -173,6 +184,7 @@ public class PrivacyService {
     public DpoTicket answerTicket(UUID ticketId, String answer) {
         DpoTicket t = tickets.findById(ticketId).orElseThrow(() -> new ApiProblemException(HttpStatus.NOT_FOUND, "nao-encontrado", "Não encontrado", "Pedido não encontrado."));
         t.answer(answer);
+        audit.record(AuditRecord.of("privacy.dpo_answer").resource("dpo_ticket", t.getProtocol()));
         return tickets.save(t);
     }
 }

@@ -1,5 +1,7 @@
 package com.doctorexplorer.core.community.service;
 
+import com.doctorexplorer.core.audit.AuditLog;
+import com.doctorexplorer.core.audit.AuditRecord;
 import com.doctorexplorer.core.community.domain.CasePost;
 import com.doctorexplorer.core.community.domain.GroupMembership;
 import com.doctorexplorer.core.community.domain.PostComment;
@@ -47,9 +49,12 @@ public class CommunityService {
     private final IdentifierDetector detector;
     private final DirectoryService directory;
 
+    private final AuditLog audit;
+
     public CommunityService(SpecialtyGroups groups, GroupMemberships memberships, CasePosts posts, PostComments comments,
-            SpecialtyClaims claims, IdentifierDetector detector, DirectoryService directory) {
+            SpecialtyClaims claims, IdentifierDetector detector, DirectoryService directory, AuditLog audit) {
         this.groups = groups;
+        this.audit = audit;
         this.memberships = memberships;
         this.posts = posts;
         this.comments = comments;
@@ -211,6 +216,7 @@ public class CommunityService {
     public CasePost hide(UUID postId, String reason) {
         CasePost p = posts.findById(postId).orElseThrow(this::notFound);
         p.hide(reason == null || reason.isBlank() ? "moderação" : reason.trim());
+        audit.record(AuditRecord.of("moderation.post_hide").resource("case_post", postId).justification(reason));
         return posts.save(p);
     }
 

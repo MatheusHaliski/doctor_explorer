@@ -14,6 +14,7 @@ type Institution = {
 type Staff = { userId: string; name: string; role: string; since: string };
 const ROLES: Record<string, string> = { NETWORK_ADMIN: "Admin da rede", HOSPITAL_ADMIN: "Gestor do hospital", CLINICAL_DIRECTOR: "Diretor clínico", UNIT_MANAGER: "Gestor da unidade", AUDITOR: "Auditor", STAFF_PHYSICIAN: "Corpo clínico", NONE: "Sem vínculo" };
 const MANAGER = new Set(["NETWORK_ADMIN", "HOSPITAL_ADMIN", "CLINICAL_DIRECTOR", "UNIT_MANAGER"]);
+const PANEL = new Set(["NETWORK_ADMIN", "HOSPITAL_ADMIN", "AUDITOR"]); // RF13: gestor do hospital/rede e auditor
 
 /** RF11 · instituição: unidades, corpo clínico verificado e pedido de vínculo. */
 export function InstitutionView({ id }: { id: string }) {
@@ -63,6 +64,11 @@ export function InstitutionView({ id }: { id: string }) {
             <Button type="button" variant="primary" loading={busy} onClick={join}>
               Pedir vínculo / aceitar convite
             </Button>
+          )}
+          {PANEL.has(i.myRole ?? "") && (
+            <Link className="btn sm" href={`/instituicoes/${id}/painel`}>
+              Painel e auditoria
+            </Link>
           )}
           {MANAGER.has(i.myRole ?? "") && (
             <>

@@ -48,6 +48,7 @@ public class AccessMatrixIT {
             "`POST /posts`, comentar", new String[] {"POST", "/api/v1/posts", "{\"specialtyCode\":\"UTI\",\"kind\":\"EDUCATION\",\"audience\":\"NETWORK\",\"title\":\"Caso da semana de teste\",\"question\":\"Pergunta guiada\"}"},
             "`GET /admin/audit`", new String[] {"GET", "/api/v1/admin/audit", null},
             "`/admin/moderation/**` (fila, selo, grupo)", new String[] {"GET", "/api/v1/admin/moderation/queue", null},
+            "`GET /admin/dashboard/**` (engajamento, qualidade)", new String[] {"GET", "/api/v1/admin/dashboard/quality", null},
             "`GET /institutions/{id}/members` (gestão)", new String[] {"GET", "/api/v1/institutions/0199a000-0000-7000-8000-0000000000ff/members", null},
             "`GET /privacy/dpo/tickets`", new String[] {"GET", "/api/v1/privacy/dpo/tickets", null},
             "`/me/**`", new String[] {"GET", "/api/v1/me", null});
