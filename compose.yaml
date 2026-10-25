@@ -40,7 +40,7 @@ services:
 
   garage-init:
     # Cria o layout, a chave e o bucket `de-media` pela Admin API v2. Idempotente.
-    image: curlimages/curl:8.11.1
+    image: curlimages/curl:8.23.0
     depends_on: [garage]
     volumes: [./infra/garage/init.sh:/init.sh:ro]
     entrypoint: ["sh", "/init.sh"]
