@@ -34,7 +34,7 @@ jobs:
         if: matrix.java == 21
         working-directory: apps/core-api
         run: mvn -B -ntp -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.java == 21
         with:
           name: sbom-core-api
@@ -63,7 +63,7 @@ jobs:
         if: matrix.java == 21
         working-directory: apps/clinical-api
         run: mvn -B -ntp -DskipTests org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.java == 21
         with:
           name: sbom-clinical-api
@@ -112,7 +112,7 @@ jobs:
         run: npm install playwright@1.56.1 && npx playwright install --with-deps chromium
       - name: Render do protótipo + testes de fumaça
         run: PLAYWRIGHT_ROOT=$PWD/node_modules node design/prototype/render.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: prototype-shots
           path: design/prototype/shots
@@ -206,7 +206,7 @@ jobs:
           SHOTS: ${{ runner.temp }}/shots
           PLAYWRIGHT_ROOT: ${{ github.workspace }}/node_modules
         run: node e2e/flow.cjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: web-e2e
