@@ -240,3 +240,71 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
   .post { grid-template-columns: 40px 1fr; }
 }
 @media (min-width: 861px) { .only-mobile { display: none !important; } }
+
+/* RF05 · mídia de casos: prévia com tarjas desenhadas pelo autor e grade das imagens aprovadas */
+.media-file:focus-visible + label.btn { outline: 3px solid var(--brand); outline-offset: 2px; }
+.media-frame { position: relative; max-width: 100%; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--line); touch-action: none; cursor: crosshair; user-select: none; background: var(--surface-2); }
+.media-frame img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.media-box { position: absolute; background: rgb(0 0 0 / 0.85); outline: 2px solid var(--warning); }
+.media-grid { list-style: none; padding: 0; margin: var(--space-3) 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-3); }
+.media-grid li { display: grid; gap: 6px; justify-items: start; }
+.media-grid img, .case-media img { width: 100%; border-radius: var(--radius-md); border: 1px solid var(--line); }
+.case-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); margin-top: var(--space-4); }
+
+/* RF08 · prontuário: lista de pacientes, etiquetas de CID-10 e sugestões */
+.patient-list { list-style: none; padding: 0; margin: var(--space-3) 0 0; display: grid; gap: var(--space-2); }
+.patient-list li { display: flex; align-items: center; gap: var(--space-3); justify-content: space-between; }
+.chips { list-style: none; padding: 0; margin: 0 0 var(--space-2); display: flex; flex-wrap: wrap; gap: 6px; }
+.chips li { display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--text); font-size: 0.875rem; }
+.chips button { min-width: 32px; min-height: 32px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; font-size: 1.1rem; color: inherit; }
+.chips button:hover { background: var(--surface-2); }
+.cid-results { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: grid; gap: 4px; }
+.cid-results .btn { width: 100%; justify-content: flex-start; text-align: left; height: auto; min-height: var(--tap-min); white-space: normal; }
+.field-error { color: var(--danger); font-size: 0.875rem; margin: 4px 0; }
+
+/* RF09 · receita e pedido de exame: etapas, itens com posologia, resumo de revisão, código de validação */
+.steps { list-style: none; padding: 0; margin: var(--space-3) 0 var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-2); counter-reset: none; }
+.steps li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-2); font-size: var(--text-sm); font-weight: 600; }
+.steps li span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--line); color: var(--text); font-size: var(--text-xs); }
+.steps li.done span { background: var(--success-soft); color: var(--success); }
+.steps li[aria-current="step"] { background: var(--brand-soft); color: var(--text); }
+.steps li[aria-current="step"] span { background: var(--brand); color: var(--surface); }
+.doc-items { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: grid; gap: var(--space-3); }
+.doc-item { box-shadow: none; border: 1px solid var(--line); }
+.doc-item-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 var(--space-3); }
+.doc-fieldset { border: 0; padding: 0; margin: var(--space-2) 0; }
+.doc-fieldset legend { font-weight: 600; font-size: var(--text-sm); margin-bottom: 4px; }
+.doc-flag { font-size: var(--text-xs); color: var(--warning); font-weight: 700; }
+.doc-summary { padding-left: 1.25rem; display: grid; gap: var(--space-2); }
+.doc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.5rem; letter-spacing: .08em; margin: 0 0 var(--space-2); }
+.doc-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px var(--space-3); margin: var(--space-2) 0; font-size: var(--text-sm); }
+.doc-facts dt { color: var(--text-2); font-weight: 600; }
+.doc-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.auth.public .card { max-width: 560px; }
+@media (max-width: 480px) { .doc-facts { grid-template-columns: 1fr; } .doc-facts dd { margin-bottom: 6px; } }
+
+/* RF06 · chat E2EE: lista, bolhas, compositor e aviso de não lidas */
+.badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--radius-pill); background: var(--brand); color: var(--on-brand); font-size: var(--text-xs); font-weight: 800; margin-left: 8px; }
+.chat-row.unread strong { font-weight: 800; }
+.inline-icon { width: 18px; height: 18px; vertical-align: -3px; }
+.chat-log { list-style: none; padding: var(--space-3); margin: var(--space-3) 0; display: grid; gap: var(--space-2); background: var(--surface-2); border-radius: var(--radius-md); max-height: 60vh; overflow-y: auto; }
+.bubble { display: flex; gap: 8px; align-items: flex-start; max-width: 80%; padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line); justify-self: start; overflow-wrap: anywhere; }
+.bubble.own { justify-self: end; background: var(--brand-soft); border-color: transparent; }
+.composer { display: flex; gap: var(--space-2); align-items: flex-end; margin-top: var(--space-3); }
+.composer textarea { flex: 1; min-height: 48px; resize: vertical; }
+.chat-file:focus-visible + label.btn { outline: 3px solid var(--brand); outline-offset: 2px; }
+.safety-code { font-size: var(--text-md); letter-spacing: .05em; }
+@media (max-width: 480px) { .bubble { max-width: 95%; } .composer { flex-wrap: wrap; } .composer textarea { flex-basis: 100%; } }
+.report-excerpt { white-space: pre-wrap; font-size: var(--text-sm); background: var(--surface-2); padding: 8px; border-radius: var(--radius-sm); margin: 6px 0; }
+
+/* RF07 · chamada de vídeo: grade de participantes, controles e aviso de chamada recebida */
+.call-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); margin: var(--space-3) 0; }
+.call-tile { position: relative; margin: 0; border-radius: var(--radius-md); overflow: hidden; background: #0b1220; aspect-ratio: 16 / 9; }
+.call-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.call-tile figcaption { position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: var(--radius-pill); background: rgb(0 0 0 / .6); color: #fff; font-size: var(--text-xs); font-weight: 700; }
+.call-controls { position: sticky; bottom: 0; background: var(--bg); padding: var(--space-2) 0; }
+.quality-boa { color: var(--success); background: var(--success-soft); }
+.quality-regular { color: var(--warning); background: var(--surface-2); }
+.quality-ruim { color: var(--danger); background: var(--danger-soft); }
+.incoming-call { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3); margin-bottom: var(--space-3); border-radius: var(--radius-md); background: var(--brand); color: var(--on-brand); box-shadow: var(--shadow-2, 0 4px 16px rgb(0 0 0 / .2)); }

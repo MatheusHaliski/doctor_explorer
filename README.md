@@ -7,9 +7,13 @@ hospitalares. Casos clínicos anonimizados, chat e vídeo com criptografia ponta
 prontuário, receita e pedido de exame com ICP-Brasil, diretório hospitalar com RBAC. Conformidade com
 **CFM, LGPD e Anvisa** desde o primeiro dia.
 
-Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF04, RF10–RF12 (identidade, selo
-CRM/RQE, perfil, grupos e feed, LGPD, diretório hospitalar, RBAC); `apps/web` é a interface real em
-Next.js sobre essa API. Ordem de entrega em
+Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF06 e RF10–RF13 (identidade, selo
+CRM/RQE, perfil, grupos e feed, anonimização de mídia, Delivery Service do chat E2EE, LGPD, diretório hospitalar,
+RBAC, auditoria e painéis) e a parte de servidor das chamadas (RF07); `packages/crypto` é o cliente MLS (RFC 9420)
+que roda no navegador; `apps/rtc` é o SFU (mediasoup) das chamadas de vídeo E2EE;
+`apps/clinical-api` cobre o RF08 (prontuário SOAP no cofre clínico e fachada FHIR R4) e o RF09 (receita e pedido de
+exame em PDF/A com assinatura PAdES, QR e validador público); `apps/web` é a interface
+real em Next.js sobre as duas. Ordem de entrega em
 [docs/ESPECIFICACAO_TECNICA.md §11](docs/ESPECIFICACAO_TECNICA.md#11-plano-de-entrega); estado por
 história em [docs/TRELLO_BACKLOG.md](docs/TRELLO_BACKLOG.md).
 
@@ -53,8 +57,43 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev     # http://localhost:8080/a
 python3 ../../scripts/gen_schema.py                    # regenera schema.sql depois de uma migração nova
 ```
 
-Fora dos perfis `dev`/`it`, `DE_APP_SECRET` (Base64, 32+ bytes) é obrigatório. A `clinical-api` (PEP,
-prescrição, FHIR) entra na fase 9 com banco e chaves separados.
+Fora dos perfis `dev`/`it`, `DE_APP_SECRET` (Base64, 32+ bytes) é obrigatório.
+
+## Prontuário (`apps/clinical-api`)
+
+Banco, usuário e segredo próprios (ADR-001). O navegador nunca fala com ela: a core-api recebe
+`/api/v1/clinical/**`, valida sessão e CSRF e repassa com um token interno de 60 s (ADR-008).
+
+```bash
+docker compose up -d                                   # o Compose já cria o banco doctor_explorer_clinical e o usuário clinical
+cd apps/clinical-api
+mvn verify                                             # unitários + EhrIT, DocumentIT e FhirValidationIT (Testcontainers PostgreSQL)
+mvn spring-boot:run -Dspring-boot.run.profiles=dev     # http://localhost:8081/actuator/health
+```
+
+Fora do perfil `dev`, `DE_CLINICAL_SECRET` (Base64, 32+ bytes) é obrigatório; a core-api acha a clinical-api em
+`DE_CLINICAL_BASE_URL` (padrão `http://localhost:8081`).
+
+Receitas (RF09): `DE_SIGNATURE_PROVIDER` escolhe quem assina. O padrão é `unavailable` (assinar falha com a causa
+e o rascunho fica intacto) até o provedor ICP-Brasil em nuvem ser contratado (ADR-007); os perfis `dev` e `it`
+usam `simulated`, uma AC e uma TSA "ICP-Brasil SIMULADA" derivadas do segredo, marcadas "sem validade jurídica"
+no PDF e no validador. `DE_PUBLIC_BASE_URL` (padrão `http://localhost:3000`) vai no QR e no link do paciente.
+
+## Chat E2EE (RF06)
+
+O texto das conversas é cifrado e decifrado só nos aparelhos, com MLS (RFC 9420) via `ts-mls` em
+`packages/crypto` (`pnpm --filter @doctor-explorer/crypto test`). A core-api é o Delivery Service: ordena commits
+por época, entrega KeyPackages de uso único e Welcomes, e guarda bytes opacos na Cassandra com TTL da retenção
+(24 h, 7 ou 90 dias). Chaves ficam no IndexedDB do navegador, cifradas por uma chave não exportável; o primeiro
+aparelho gera a frase de recuperação, os seguintes são aprovados por um aparelho confiável ou pela frase.
+
+## Chamadas de vídeo E2EE (RF07)
+
+`apps/rtc` é o SFU (mediasoup) com sinalização WebSocket: `pnpm --filter @doctor-explorer/rtc start` (porta 4443,
+mídia UDP/TCP 40000–40199; `RTC_ANNOUNCED_ADDRESS` é o IP que o navegador alcança). Ele busca a chave pública da
+core-api e só admite quem traz o token interno de 60 s emitido por `POST /api/v1/calls`. Cada quadro de áudio e
+vídeo é cifrado no navegador com a chave exportada do grupo MLS da conversa; o SFU só repassa cifra. TURN em
+produção: `DE_TURN_URLS` e `DE_TURN_SECRET` (coturn com REST API).
 
 ## Web (`apps/web`)
 
@@ -78,7 +117,7 @@ URL), `/casos/novo`, `/casos/[id]`, `/grupos`, `/perfil` (+ selo CRM/RQE), `/per
 
 ## CI
 
-`.github/workflows/ci.yml`: `mvn verify` em JDK 21 e 25 · `apps/web` (typecheck, lint, vitest, build) · `web-e2e` (navegador real contra a API real com PostGIS e Valkey) · **Docs por RF** (`scripts/docs_por_rf.py`:
+`.github/workflows/ci.yml`: `mvn verify` da core-api e da clinical-api em JDK 21 e 25 · `apps/web` (typecheck, lint, vitest, build) · `web-e2e` (navegador real contra as duas APIs reais com o Compose) · **Docs por RF** (`scripts/docs_por_rf.py`:
 doc do RF atualizado no mesmo commit em que seu código muda + todo Mermaid renderiza) · contraste e
 protótipo · CodeQL · Gitleaks · Trivy · SBOM CycloneDX · Dependabot.
 

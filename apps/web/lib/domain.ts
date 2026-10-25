@@ -12,7 +12,7 @@ export const SPECIALTIES: Record<string, string> = {
 
 export const KINDS: Record<string, string> = {
   CASE: "Caso clínico",
-  QUESTION: "Dúvida",
+  OPINION_REQUEST: "Pedido de parecer",
   EDUCATION: "Educação",
   PROTOCOL: "Protocolo",
   NOTICE: "Comunicado",
@@ -71,4 +71,10 @@ export function timeAgo(iso: string, now = Date.now()): string {
 export function formatDateTime(iso: string): string {
   if (!iso || iso === "null") return "—";
   return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+/** Data de calendário (AAAA-MM-DD) em pt-BR, sem passar por fuso horário. */
+export function formatDate(isoDate: string): string {
+  const [y, m, d] = isoDate.slice(0, 10).split("-");
+  return y && m && d ? `${d}/${m}/${y}` : "—";
 }

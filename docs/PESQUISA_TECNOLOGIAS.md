@@ -5,18 +5,18 @@ decisão, alternativas, consequências, status. Status possíveis: **proposto ·
 
 | ADR | Decisão | Status |
 |---|---|---|
-| [ADR-001](#adr-001--monólito-modular-com-clinical-api-separada) | Monólito modular + `clinical-api` separada | proposto |
+| [ADR-001](#adr-001--monólito-modular-com-clinical-api-separada) | Monólito modular + `clinical-api` separada | aceito |
 | [ADR-002](#adr-002--barramento-de-eventos-por-instituição) | Barramento de eventos por instituição (outbox → streams) | proposto |
-| [ADR-003](#adr-003--openehr-como-modelo-interno-fhir-como-fachada) | openEHR interno, FHIR R4 como fachada | proposto |
-| [ADR-004](#adr-004--hapi-fhir) | HAPI FHIR | proposto |
+| [ADR-003](#adr-003--openehr-como-modelo-interno-fhir-como-fachada) | openEHR interno, FHIR R4 como fachada | aceito (MVP simplificado) |
+| [ADR-004](#adr-004--hapi-fhir) | HAPI FHIR | aceito |
 | [ADR-005](#adr-005--servidor-de-terminologia) | Servidor de terminologia (CID-10, LOINC, SNOMED CT) | proposto |
-| [ADR-006](#adr-006--webrtc-com-sfu-e-e2ee-sframe) | WebRTC com SFU + E2EE SFrame | proposto |
+| [ADR-006](#adr-006--webrtc-com-sfu-e-e2ee-sframe) | WebRTC com SFU + E2EE SFrame | aceito (mediasoup) |
 | [ADR-007](#adr-007--assinatura-icp-brasil-em-nuvem) | Assinatura ICP-Brasil via provedor em nuvem | proposto |
-| [ADR-008](#adr-008--sessão-opaca-no-cliente-token-interno-curto) | Sessão opaca no cliente; token interno de 60 s entre serviços | proposto |
+| [ADR-008](#adr-008--sessão-opaca-no-cliente-token-interno-curto) | Sessão opaca no cliente; token interno de 60 s entre serviços | aceito |
 | [ADR-009](#adr-009--fonte-de-verificação-de-crmrqe) | Fonte de verificação de CRM/RQE | proposto |
-| [ADR-010](#adr-010--mls-rfc-9420-para-chat-e2ee) | MLS (RFC 9420) para chat E2EE | proposto |
+| [ADR-010](#adr-010--mls-rfc-9420-para-chat-e2ee) | MLS (RFC 9420) para chat E2EE | aceito (web com ts-mls) |
 | [ADR-011](#adr-011--infraestrutura-gerenciada-na-aws-sa-east-1) | Infraestrutura gerenciada na AWS sa-east-1 | proposto |
-| [ADR-012](#adr-012--dcm4che-e-tesseract-na-anonimização) | dcm4che e Tesseract na anonimização | proposto |
+| [ADR-012](#adr-012--dcm4che-e-tesseract-na-anonimização) | dcm4che e Tesseract na anonimização | aceito |
 | [ADR-013](#adr-013--busca-por-raio-haversine-agora-postgis-depois) | Busca por raio: Haversine agora, PostGIS depois | aceito |
 | [ADR-014](#adr-014--auditoria-encadeada-na-cassandra) | Auditoria encadeada na Cassandra, exportação assinada com Ed25519 | aceito |
 | [ADR-015](#adr-015--garage-como-s3-de-dev-e-de-teste) | Garage como S3 de dev e de teste | aceito |
@@ -62,10 +62,22 @@ openEHR (sem interoperabilidade com RNDS).
 **Consequências.** Camada de mapeamento com testes de ida e volta; EHRbase avaliado como repositório
 openEHR pronto (**⚖️ licença e operação**).
 
+**Como ficou no MVP (RF08).** Uma Composition por nota SOAP em tabela própria (`soap_composition`), com a
+semântica do arquétipo de evolução: linhagem de versões, autor, encontro (contexto), quatro seções e
+diagnósticos CID-10/SNOMED. Sem EHRbase por enquanto; o mapeamento para FHIR fica em `FhirMapper` e é validado
+no CI. A troca para arquétipos do CKM entra quando o PEP crescer além da nota de evolução.
+
 ## ADR-004 · HAPI FHIR
 
 **Decisão.** Biblioteca HAPI FHIR (estruturas R4 + validador) dentro da `clinical-api`, sem o servidor JPA
 completo. Validação contra perfis BR no CI.
+
+**Como ficou (RF08).** HAPI FHIR 8.12.1 (`structures-r4`, `validation`, `validation-resources-r4`). A fachada
+`/fhir/r4` é só leitura (Patient, Practitioner, Encounter, Composition, Condition, Provenance e buscas
+`Composition?patient=`, `Condition?encounter=`, `Provenance?target=`). `FhirValidationIT` valida cada resposta
+com o `FhirInstanceValidator` contra os perfis base R4 (zero erros). Os perfis BR da RNDS e o CID-10 como
+CodeSystem carregado no validador ficam para quando houver integração com a RNDS (hoje o sistema
+`BRCID10` aparece como desconhecido, o que é aviso e não erro).
 
 ## ADR-005 · Servidor de terminologia
 
@@ -79,6 +91,12 @@ terminologia FHIR (Snowstorm ou Ontoserver) **só depois da licença** **⚖️*
 
 **Decisão.** SFU (**mediasoup** ou **LiveKit**, a decidir por POC) + *insertable streams* com **SFrame**;
 chave derivada da epoch MLS da conversa. coturn para relay.
+
+**Atualização (MVP, RF07).** **mediasoup 3.31** em `apps/rtc` (Node 22), com sinalização própria por WebSocket.
+O LiveKit ficou de fora porque a entrada na sala dele é um JWT, e o projeto não usa JWT: a admissão aqui é o token
+interno Ed25519 de 60 s da core-api (ADR-008). E2EE por `RTCRtpScriptTransform` num Worker, cifra de quadro no
+espírito do SFrame (RFC 9605): AES-256-GCM, só o cabeçalho do codec em claro, época no trailer. A chave é o
+exportador do grupo MLS da conversa (RFC 9420 §8.5), então muda junto com a época. Só Opus e VP8.
 
 **Alternativas.** Mesh P2P (não escala além de 4); MCU (precisa decifrar).
 
@@ -105,6 +123,15 @@ clara em falha.
 assinado de **60 s** com escopo da requisição (não é revogável, mas vive só 60 s e nunca sai da rede
 interna). 2FA e sudo ficam na sessão.
 
+**Como ficou (RF08).** A core-api é a porta: `/api/v1/clinical/**` exige a sessão (e o CSRF nas escritas),
+emite o token e repassa a chamada à `clinical-api` pela rede interna, sem ler o corpo. Formato próprio e mínimo
+(não é JWT): `v1.<base64url(json)>.<base64url(Ed25519)>`, com `iss`, `aud`, `sub`, nome, CRM/UF, selo,
+`sudoUntil`, `mfa`, `write` (só verdadeiro em método de escrita, depois do CSRF), `iat`, `exp` (+60 s) e `jti`. A
+chave deriva do segredo da core-api; a pública fica em `GET /api/v1/internal/public-key`. A `clinical-api`
+confere assinatura, público, validade e relógio, e usa o mesmo token para devolver a auditoria em
+`POST /api/v1/internal/audit` (só ações `clinical.*`, ator sempre o do token). Em produção, mTLS entre os
+serviços e `/api/v1/internal/**` fora do balanceador público.
+
 ## ADR-009 · Fonte de verificação de CRM/RQE
 
 **Decisão.** Consulta à fonte oficial do CFM (serviço de dados ou busca pública de médicos), com adapter,
@@ -120,6 +147,15 @@ só como Delivery Service. Backup de chave opcional protegido por frase.
 
 **Consequências.** Sem moderação de conteúdo no servidor: denúncia pelo cliente. Nova tecnologia (Rust/WASM)
 na stack: revisão criptográfica externa obrigatória.
+
+**Atualização (MVP web, RF06).** No navegador o MVP usa **`ts-mls`** (TypeScript puro, RFC 9420 completo, MIT),
+em `packages/crypto`, em vez de OpenMLS/WASM: sem toolchain Rust no build do web e a mesma API nos testes
+(vitest) e no navegador. Suíte 1 (X25519, AES-128-GCM, SHA-256, Ed25519), credencial básica = id do aparelho e
+Authentication Service no cliente conferindo a chave de cada folha com o diretório de aparelhos. O mobile nativo
+segue com OpenMLS; a interoperabilidade entre as duas implementações entra no teste de interop quando o app
+existir. A biblioteca não passou por auditoria formal: continua valendo a revisão criptográfica externa antes
+do go-live. O backup de chaves por frase ficou para depois: a frase de recuperação do MVP só aprova um aparelho
+novo, não restaura histórico.
 
 ## ADR-011 · Infraestrutura gerenciada na AWS sa-east-1
 
@@ -147,6 +183,16 @@ query.
 **Decisão.** **dcm4che** para desidentificação DICOM (PS3.15 Anexo E) e **Tesseract** (por) para OCR de
 texto gravado em imagem; detecção de rosto com modelo leve embarcado (sem enviar imagem a terceiros).
 Tudo roda em worker isolado, só em memória.
+
+**Como ficou (RF05).** dcm4che 5.35.2 (`dcm4che-deident` + leitor ImageIO DICOM, repositório Maven próprio do
+projeto); Tesseract 5 pela linha de comando (`stdin → tsv`, `por+eng`), sem JNI; libheif (`heif-info`,
+`heif-convert`) para HEIC, com temporários em `/dev/shm`; detecção de rosto com OpenCV 4.9 (openpnp, nativo
+embarcado no jar) e a cascata Haar frontal versionada em `resources/media`; metadata-extractor só para listar o
+que foi removido. A saída é sempre reconstruída a partir dos pixels. Os binários de sistema ficam na imagem base
+`infra/images/core-api-base`; o CI instala os mesmos pacotes. Ferramenta ausente ou com erro → mídia `FALHOU`
+(falha fechada). Trade-off aceito: Haar perde rostos de perfil e muito pequenos; por isso a revisão do autor é
+obrigatória e a tarja manual existe. Um detector DNN (YuNet) é o próximo passo se a avaliação de usabilidade
+mostrar rostos escapando.
 
 ## ADR-014 · Auditoria encadeada na Cassandra
 

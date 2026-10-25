@@ -9,11 +9,15 @@ paths = [
   '''infra/garage/init\.sh''',
   '''compose\.yaml''',
   '''apps/core-api/src/main/resources/application-(dev|it)\.yml''',
+  '''apps/clinical-api/src/main/resources/application-(dev|it)\.yml''',
+  '''infra/postgres/10-clinical\.sql''',
   '''apps/core-api/src/test/java/com/doctorexplorer/core/support/GarageContainer\.java''',
 ]
 regexes = [
   '''ZGV2LW9ubHktc2VjcmV0LWRldi1vbmx5LXNlY3JldC0xMjM0NTY=''',
   '''aXQtb25seS1zZWNyZXQtaXQtb25seS1zZWNyZXQtMTIzNDU2Nzg=''',
+  '''ZGV2LWNsaW5pY2FsLXNlY3JldC1kZXYtY2xpbmljYWwtc2VjcmV0LTEyMw==''',
+  '''aXQtY2xpbmljYWwtc2VjcmV0LWl0LWNsaW5pY2FsLXNlY3JldC0xMjM0NTY=''',
   '''dev-admin-token''',
   '''GKdedevdedevdedevdedevdede''',
 ]

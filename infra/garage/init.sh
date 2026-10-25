@@ -20,7 +20,7 @@ curl -sf -H "$H" "$GARAGE_ADMIN/v2/ListKeys" | j | grep -q '"name":"de-dev"' || 
   curl -sf -H "$H" -X POST "$GARAGE_ADMIN/v2/ImportKey" \
     -d '{"name":"de-dev","accessKeyId":"GKdedevdedevdedevdedevdede","secretAccessKey":"de-dev-secret-de-dev-secret-de-dev-secret-de-dev-secret-0000000"}' >/dev/null
 
-for B in de-audit-exports de-media-quarantine de-media-published; do
+for B in de-audit-exports de-media-quarantine de-media-published de-chat-attachments; do
   curl -sf -H "$H" "$GARAGE_ADMIN/v2/ListBuckets" | j | grep -q "\"$B\"" || \
     curl -sf -H "$H" -X POST "$GARAGE_ADMIN/v2/CreateBucket" -d "{\"globalAlias\":\"$B\"}" >/dev/null
   BID=$(curl -sf -H "$H" "$GARAGE_ADMIN/v2/ListBuckets" | j | tr '{' '\n' | grep "\"$B\"" | sed -n 's/.*"id":"\([0-9a-f]*\)".*/\1/p' | head -1)

@@ -87,6 +87,19 @@ public class InstitutionDashboardController {
         return ResponseEntity.status(HttpStatus.CREATED).body(AuditViews.export(x));
     }
 
+    @GetMapping("/audit/exports")
+    Map<String, Object> exports(@PathVariable UUID id, HttpServletRequest request) {
+        Role role = require(id, request);
+        return Map.of("exports", audit.myExports(viewer(id, role)).stream().map(AuditViews::export).toList());
+    }
+
+    /** Download confere de novo papel na árvore e 2FA; a visão (instituição + papel) precisa ser a da exportação. */
+    @GetMapping("/audit/exports/{exportId}/download")
+    Map<String, Object> download(@PathVariable UUID id, @PathVariable UUID exportId, HttpServletRequest request) {
+        Role role = require(id, request);
+        return AuditViews.download(audit.download(viewer(id, role), exportId));
+    }
+
     /** Papel efetivo com leitura de auditoria (AUDITOR, gestor do hospital ou da rede) + 2FA; fora da árvore = 404. */
     private Role require(UUID institutionId, HttpServletRequest request) {
         UUID userId = sessions.require().userId();

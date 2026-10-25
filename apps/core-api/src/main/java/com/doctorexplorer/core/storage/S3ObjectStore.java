@@ -48,7 +48,7 @@ public class S3ObjectStore implements ObjectStore {
         this.presigner = pre.build();
         this.sse = p.serverSideEncryption();
         if (p.createBuckets()) {
-            for (String b : List.of(p.buckets().auditExports(), p.buckets().mediaQuarantine(), p.buckets().mediaPublished())) {
+            for (String b : List.of(p.buckets().auditExports(), p.buckets().mediaQuarantine(), p.buckets().mediaPublished(), p.buckets().chatAttachments())) {
                 try {
                     s3.headBucket(r -> r.bucket(b));
                 } catch (RuntimeException missing) {
@@ -81,6 +81,30 @@ public class S3ObjectStore implements ObjectStore {
     @Override
     public void delete(String bucket, String key) {
         s3.deleteObject(r -> r.bucket(bucket).key(key));
+    }
+
+    @Override
+    public Optional<Long> size(String bucket, String key) {
+        try {
+            return Optional.of(s3.headObject(r -> r.bucket(bucket).key(key)).contentLength());
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
+            if (e.statusCode() == 404) return Optional.empty();
+            throw e;
+        }
+    }
+
+    @Override
+    public void copy(String fromBucket, String fromKey, String toBucket, String toKey) {
+        s3.copyObject(r -> r.sourceBucket(fromBucket).sourceKey(fromKey).destinationBucket(toBucket).destinationKey(toKey));
+    }
+
+    @Override
+    public void allowBrowserUploads(String bucket, List<String> origins) {
+        if (origins == null || origins.isEmpty()) return;
+        s3.putBucketCors(r -> r.bucket(bucket).corsConfiguration(c -> c.corsRules(rule -> rule.allowedOrigins(origins)
+                .allowedMethods("PUT", "GET").allowedHeaders("content-type").maxAgeSeconds(600))));
     }
 
     @Override

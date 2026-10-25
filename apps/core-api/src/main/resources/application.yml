@@ -78,3 +78,24 @@ doctor-explorer:
     path-style: ${DE_S3_PATH_STYLE:false}
     create-buckets: false
     server-side-encryption: true
+  # RF08 · clinical-api na rede interna (o navegador nunca fala com ela direto)
+  clinical:
+    base-url: ${DE_CLINICAL_BASE_URL:http://localhost:8081}
+    timeout: 15s
+  # RF07 · SFU de chamadas (apps/rtc) e TURN com credencial efêmera; o segredo do coturn só por variável de ambiente
+  rtc:
+    public-url: ${DE_RTC_PUBLIC_URL:ws://localhost:4443/ws}
+    max-participants: 8
+    ring-seconds: 45
+    turn-urls: ${DE_TURN_URLS:}
+    turn-secret: ${DE_TURN_SECRET:}
+    turn-ttl-seconds: 600
+  # RF05 · anonimização de mídia. Tesseract e libheif vêm da imagem base (infra/images/core-api-base).
+  media:
+    max-image-bytes: 20971520
+    max-dicom-bytes: 52428800
+    max-pixels: 40000000
+    ocr-languages: por+eng
+    ocr-min-confidence: 30
+    # origem do web (PUT direto do navegador na quarentena), separada por vírgula
+    cors-origins: ${DE_MEDIA_CORS_ORIGINS:}

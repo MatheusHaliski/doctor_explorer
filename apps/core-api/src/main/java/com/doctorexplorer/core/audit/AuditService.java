@@ -106,9 +106,11 @@ public class AuditService {
         List<Map<String, Object>> broken = new ArrayList<>();
         int checked = 0;
         for (String scope : v.scopes()) {
-            List<AuditEvent> events = store.range(scope, q.from(), q.to());
+            // só a cadeia confirmada, ancorada na cabeça gravada: provisórios de corrida ficam de fora e sumiço do fim aparece
+            AuditChain.Resolved resolved = store.committed(scope, q.from(), q.to());
+            List<AuditEvent> events = resolved.events();
             checked += events.size();
-            Verification ver = AuditChain.verify(events);
+            Verification ver = resolved.verification();
             if (!ver.intact()) {
                 Map<String, Object> b = new LinkedHashMap<>();
                 b.put("scope", scope);
@@ -142,7 +144,7 @@ public class AuditService {
                     "Só o auditor da instituição e o Encarregado exportam o id do paciente.");
         }
         String filters = "from=" + q.from() + ";to=" + q.to() + ";actorId=" + n(q.actorId()) + ";action=" + n(q.action()) + ";resourceType=" + n(q.resourceType());
-        AuditExport ex = exports.save(new AuditExport(v.userId(), String.join(",", v.scopes()), filters, q.justification(), q.revealPatient()));
+        AuditExport ex = exports.save(new AuditExport(v.userId(), v.label(), String.join(",", v.scopes()), filters, q.justification(), q.revealPatient()));
         ex.generating();
         try {
             Collected c = collect(v, q);
@@ -166,11 +168,19 @@ public class AuditService {
 
     public record Download(AuditExport export, URI csvUrl, URI signatureUrl) {}
 
-    /** URL pré-assinada de 15 min; só quem pediu; depois de 24 h a exportação expira. */
+    /**
+     * URL pré-assinada de 15 min; só quem pediu e só com a mesma visão de agora (papel, vínculo e 2FA conferidos de
+     * novo pelo controller que monta a visão); depois de 24 h a exportação expira.
+     */
     @Transactional
-    public Download download(UUID userId, UUID exportId) {
-        AuditExport ex = exports.findById(exportId).filter(e -> e.getRequestedBy().equals(userId)).orElseThrow(() ->
-                new ApiProblemException(HttpStatus.NOT_FOUND, "nao-encontrado", "Não encontrado", "A exportação não existe ou não é sua."));
+    public Download download(Viewer v, UUID exportId) {
+        AuditExport ex = exports.findById(exportId).filter(e -> e.getRequestedBy().equals(v.userId()) && v.label().equals(e.getViewerLabel()))
+                .orElseThrow(() -> new ApiProblemException(HttpStatus.NOT_FOUND, "nao-encontrado", "Não encontrado",
+                        "A exportação não existe, não é sua ou foi gerada com um papel que você não tem mais."));
+        if (!Set.copyOf(v.scopes()).containsAll(List.of(ex.getScope().split(","))) || (ex.isRevealPatient() && !v.mayRevealPatient())) {
+            throw new ApiProblemException(HttpStatus.FORBIDDEN, "sem-papel", "Sem permissão para esta exportação",
+                    "Seu acesso atual não cobre mais as instituições ou o id do paciente desta exportação.");
+        }
         Instant now = Instant.now();
         if (!ex.downloadable(now)) {
             exports.save(ex);
@@ -185,8 +195,8 @@ public class AuditService {
                 objects.presignGet(bucket, ex.getObjectKey() + ".sig", DOWNLOAD_TTL, "auditoria-" + ex.getId() + ".csv.sig"));
     }
 
-    public List<AuditExport> myExports(UUID userId) {
-        return exports.findTop20ByRequestedByOrderByCreatedAtDesc(userId);
+    public List<AuditExport> myExports(Viewer v) {
+        return exports.findTop20ByRequestedByAndViewerLabelOrderByCreatedAtDesc(v.userId(), v.label());
     }
 
     static String toCsv(List<AuditEvent> events, ChainReport chain) {

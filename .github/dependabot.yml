@@ -7,6 +7,15 @@ updates:
     groups:
       spring:
         patterns: ["org.springframework*"]
+  - package-ecosystem: maven
+    directory: /apps/clinical-api
+    schedule:
+      interval: weekly
+    groups:
+      spring:
+        patterns: ["org.springframework*"]
+      hapi:
+        patterns: ["ca.uhn.hapi.fhir*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

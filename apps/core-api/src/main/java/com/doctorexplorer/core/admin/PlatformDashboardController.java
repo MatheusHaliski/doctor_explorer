@@ -13,6 +13,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -70,6 +71,17 @@ public class PlatformDashboardController {
     ResponseEntity<Map<String, Object>> export(@RequestBody ExportRequest r) {
         var x = audit.export(viewer(), AuditViews.query(r.from(), r.to(), r.actorId(), r.action(), r.resourceType(), r.justification(), Boolean.TRUE.equals(r.revealPatient()), 0, 0));
         return ResponseEntity.status(HttpStatus.CREATED).body(AuditViews.export(x));
+    }
+
+    @GetMapping("/audit/exports")
+    Map<String, Object> exports() {
+        return Map.of("exports", audit.myExports(viewer()).stream().map(AuditViews::export).toList());
+    }
+
+    /** Papel global e 2FA já conferidos pelo SecurityConfig nesta requisição; a visão precisa ser a da exportação. */
+    @GetMapping("/audit/exports/{exportId}/download")
+    Map<String, Object> download(@PathVariable UUID exportId) {
+        return AuditViews.download(audit.download(viewer(), exportId));
     }
 
     private AuditService.Viewer viewer() {

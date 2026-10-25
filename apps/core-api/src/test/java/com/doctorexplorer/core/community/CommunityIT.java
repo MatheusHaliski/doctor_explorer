@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.doctorexplorer.core.identity.service.LoggingMailer;
 import com.doctorexplorer.core.support.ApiClient;
+import com.doctorexplorer.core.support.TestCrm;
 import com.doctorexplorer.core.support.TestInfra;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,7 +43,7 @@ class CommunityIT {
         ApiClient c = new ApiClient(mvc);
         c.register("uti+" + System.nanoTime() + "@example.org", PASSWORD);
         c.activateEmail(mailer);
-        String crm = "12" + String.format("%04d", System.nanoTime() % 10_000);
+        String crm = TestCrm.next("12");
         c.post("/api/v1/credentials", "{\"crmNumber\":\"" + crm + "\",\"crmUf\":\"PR\",\"specialties\":[{\"specialtyCode\":\"UTI\",\"rqe\":\"11111\"}]}");
         return c;
     }
@@ -119,7 +120,7 @@ class CommunityIT {
         ApiClient carla = new ApiClient(mvc);
         carla.register("derm+" + System.nanoTime() + "@example.org", PASSWORD);
         carla.activateEmail(mailer);
-        carla.post("/api/v1/credentials", "{\"crmNumber\":\"12" + String.format("%04d", System.nanoTime() % 10_000) + "\",\"crmUf\":\"RS\",\"specialties\":[]}");
+        carla.post("/api/v1/credentials", "{\"crmNumber\":\"" + TestCrm.next("12") + "\",\"crmUf\":\"RS\",\"specialties\":[]}");
         assertThat(carla.get("/api/v1/feed").getContentAsString()).contains(semana).doesNotContain(caso);
         assertThat(carla.get("/api/v1/posts/" + postId).getStatus()).isEqualTo(404);
 

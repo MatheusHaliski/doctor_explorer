@@ -63,4 +63,14 @@ final class AuditViews {
         m.put("downloadUrl", "/api/v1/audit/exports/" + x.getId() + "/download");
         return m;
     }
+
+    static Map<String, Object> download(AuditService.Download d) {
+        Map<String, Object> m = new LinkedHashMap<>(export(d.export()));
+        m.put("csvUrl", d.csvUrl().toString());
+        m.put("signatureUrl", d.signatureUrl().toString());
+        m.put("urlTtlSeconds", AuditService.DOWNLOAD_TTL.toSeconds());
+        m.put("verify", "openssl pkeyutl -verify -pubin -inkey doctor-explorer-auditoria.pem -rawin -in auditoria.csv -sigfile auditoria.sig.bin "
+                + "(antes: base64 -d auditoria.csv.sig > auditoria.sig.bin)");
+        return m;
+    }
 }

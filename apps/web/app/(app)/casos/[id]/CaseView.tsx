@@ -14,10 +14,11 @@ type Case = Post & {
   sections: { complaint: string; history: string; exam: string; workup: string; question: string };
   comments: Comment[];
   canRecordInEhr: boolean;
+  media: Array<{ id: string; url: string; width: number; height: number }>;
 };
 const LABELS: Record<string, string> = { complaint: "Queixa e contexto", history: "História", exam: "Exame físico", workup: "Exames complementares", question: "Pergunta" };
 
-/** RF04 · caso com pareceres; resolver só pelo autor; "Registrar no prontuário" só para o autor (RF08, em breve). */
+/** RF04 · caso com pareceres; resolver só pelo autor; "Registrar no prontuário" só para o autor (RF08). */
 export function CaseView({ id }: { id: string }) {
   const router = useRouter();
   const session = useSession();
@@ -116,6 +117,16 @@ export function CaseView({ id }: { id: string }) {
               <p className="whitespace-pre-wrap text-text-2">{v}</p>
             </section>
           ))}
+        {c.media.length > 0 && (
+          <div className="case-media" aria-label="Imagens do caso (anonimizadas)">
+            {c.media.map((m) => (
+              <a key={m.id} href={m.url} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element -- URL pré-assinada de 10 min, só para quem pode ver o caso */}
+                <img src={m.url} width={m.width} height={m.height} alt="Imagem do caso, anonimizada e revisada pelo autor" loading="lazy" />
+              </a>
+            ))}
+          </div>
+        )}
         {c.tags.length > 0 && (
           <div className="tags mt-4">
             {c.tags.map((t) => (
@@ -137,9 +148,9 @@ export function CaseView({ id }: { id: string }) {
                 Marcar como resolvido
               </Button>
             )}
-            <Button type="button" disabled title="Chega com o prontuário (RF08)">
+            <Link className="btn" href={`/prontuario/nova?post=${c.id}`}>
               Registrar no prontuário
-            </Button>
+            </Link>
             <Button type="button" variant="danger" onClick={remove}>
               Excluir
             </Button>

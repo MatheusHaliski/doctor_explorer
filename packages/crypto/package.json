@@ -1,0 +1,25 @@
+{
+  "name": "@doctor-explorer/crypto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RF06/RF07 · cliente MLS (RFC 9420) do aparelho: chaves, KeyPackages, grupos, mensagens, códigos de segurança e chaves de chamada.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./frames": "./src/frames.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/curves": "2.0.1",
+    "@noble/hashes": "2.0.1",
+    "ts-mls": "1.6.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

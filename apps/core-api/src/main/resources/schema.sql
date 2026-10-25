@@ -377,3 +377,193 @@ create table audit_export (
 );
 
 create index audit_export_requested_by_idx on audit_export (requested_by, created_at desc);
+
+-- V8 · Mídia de casos (RF05). O arquivo vai direto ao S3 de quarentena por URL pré-assinada; a anonimização roda
+-- em memória e gera uma prévia privada; só a versão aprovada pelo autor vai para o bucket publicado. O original é
+-- apagado na aprovação, no descarte ou em até 24 h pelo job de limpeza.
+-- Estados: UPLOAD_PENDENTE → QUARENTENA → PROCESSANDO → AGUARDANDO_REVISAO → APROVADO | DESCARTADO,
+--          e os finais EXPIRADO, REJEITADO, FALHOU.
+
+create table media_asset (
+    id                  uuid        primary key,
+    owner_id            uuid        not null references user_account (id),
+    kind                text        not null,
+    state               text        not null,
+    declared_type       text        not null,
+    declared_size       bigint      not null,
+    dermatology         boolean     not null default false,
+    blur_faces          boolean,
+    quarantine_key      text        not null,
+    preview_key         text,
+    published_key       text,
+    output_type         text,
+    width               integer,
+    height              integer,
+    preview_version     integer     not null default 0,
+    report              text,
+    reason              text,
+    post_id             uuid        references case_post (id) on delete set null,
+    created_at          timestamptz not null default now(),
+    upload_expires_at   timestamptz not null,
+    processed_at        timestamptz,
+    approved_at         timestamptz,
+    original_deleted_at timestamptz,
+    constraint media_asset_kind_chk check (kind in ('IMAGE', 'DICOM')),
+    constraint media_asset_state_chk check (state in ('UPLOAD_PENDENTE', 'QUARENTENA', 'PROCESSANDO', 'AGUARDANDO_REVISAO',
+        'APROVADO', 'DESCARTADO', 'EXPIRADO', 'REJEITADO', 'FALHOU'))
+);
+
+create index media_asset_owner_idx on media_asset (owner_id, created_at desc);
+create index media_asset_post_idx on media_asset (post_id) where post_id is not null;
+create index media_asset_cleanup_idx on media_asset (created_at) where original_deleted_at is null;
+
+-- V9 · A exportação guarda com que visão foi gerada (ex.: "platform:dpo", "institution:{id}:AUDITOR"). No download a
+-- visão é recalculada pela sessão atual e precisa ser a mesma: quem perdeu o papel, o vínculo ou o 2FA não recebe
+-- novas URLs (RF13). Exportações anteriores, sem visão, deixam de ser baixáveis (valiam 24 h).
+
+alter table audit_export add column viewer_label text;
+
+-- V10 · Retomada do processamento de mídia (RF05). Se a API reinicia entre o "complete" e o fim da anonimização,
+-- a tarefa em memória some; o job de limpeza reencontra QUARENTENA/PROCESSANDO parados pelo momento da última
+-- transição e tenta de novo, até 3 tentativas (depois FALHOU, original apagado).
+
+alter table media_asset add column state_changed_at timestamptz not null default now();
+alter table media_asset add column processing_attempts integer not null default 0;
+
+create index media_asset_stuck_idx on media_asset (state_changed_at) where state in ('QUARENTENA', 'PROCESSANDO');
+
+-- V11 · Chat E2EE com MLS (RF06). O servidor é o Delivery Service: guarda aparelhos e suas chaves públicas,
+-- KeyPackages (públicos, de uso único), conversas e membros. Mensagens e commits cifrados ficam na Cassandra
+-- com TTL; aqui não há texto de mensagem. A única exceção é a denúncia, em que quem denuncia encaminha, por
+-- ação explícita, o trecho já decifrado ao moderador.
+
+create table messaging_device (
+    id              uuid primary key,
+    user_id         uuid        not null references user_account (id) on delete cascade,
+    name            text        not null,
+    signature_key   bytea       not null,
+    state           text        not null,
+    approved_via    text,
+    approved_by     uuid,
+    created_at      timestamptz not null default now(),
+    approved_at     timestamptz,
+    revoked_at      timestamptz,
+    last_seen_at    timestamptz,
+    constraint messaging_device_state_chk check (state in ('PENDING', 'APPROVED', 'REVOKED')),
+    constraint messaging_device_via_chk check (approved_via is null or approved_via in ('FIRST', 'DEVICE', 'RECOVERY')),
+    constraint messaging_device_key_len check (octet_length(signature_key) = 32),
+    constraint messaging_device_key_uq unique (signature_key)
+);
+create index messaging_device_user_idx on messaging_device (user_id, state);
+
+-- Frase de recuperação: o navegador deriva um verificador (PBKDF2) e o servidor guarda só o Argon2id dele.
+create table messaging_recovery (
+    user_id         uuid primary key references user_account (id) on delete cascade,
+    verifier_hash   text        not null,
+    created_at      timestamptz not null default now()
+);
+
+create table messaging_key_package (
+    id              uuid primary key,
+    device_id       uuid        not null references messaging_device (id) on delete cascade,
+    payload         bytea       not null,
+    created_at      timestamptz not null default now(),
+    consumed_at     timestamptz
+);
+create index messaging_key_package_free_idx on messaging_key_package (device_id, created_at) where consumed_at is null;
+
+create table conversation (
+    id              uuid primary key,
+    kind            text        not null,
+    title           text,
+    created_by      uuid        not null references user_account (id),
+    direct_key      text,
+    epoch           bigint      not null default 0,
+    next_seq        bigint      not null default 1,
+    last_app_seq    bigint      not null default 0,
+    retention_days  int         not null default 90,
+    state           text        not null default 'ACTIVE',
+    created_at      timestamptz not null default now(),
+    last_message_at timestamptz,
+    constraint conversation_kind_chk check (kind in ('DIRECT', 'GROUP')),
+    constraint conversation_state_chk check (state in ('ACTIVE', 'ARCHIVED')),
+    constraint conversation_retention_chk check (retention_days in (1, 7, 90)),
+    constraint conversation_direct_uq unique (direct_key)
+);
+
+create table conversation_member (
+    conversation_id uuid        not null references conversation (id) on delete cascade,
+    user_id         uuid        not null references user_account (id) on delete cascade,
+    role            text        not null,
+    joined_at       timestamptz not null default now(),
+    left_at         timestamptz,
+    last_read_seq   bigint      not null default 0,
+    primary key (conversation_id, user_id),
+    constraint conversation_member_role_chk check (role in ('OWNER', 'MEMBER'))
+);
+create index conversation_member_user_idx on conversation_member (user_id) where left_at is null;
+
+-- Quais aparelhos estão na árvore MLS de cada conversa, segundo os commits aceitos (o cliente confere de novo).
+create table conversation_device (
+    conversation_id uuid        not null references conversation (id) on delete cascade,
+    device_id       uuid        not null references messaging_device (id) on delete cascade,
+    added_epoch     bigint      not null,
+    removed_epoch   bigint,
+    primary key (conversation_id, device_id)
+);
+
+create table message_report (
+    id              uuid primary key,
+    conversation_id uuid        not null references conversation (id) on delete cascade,
+    reporter_id     uuid        not null references user_account (id),
+    reported_user_id uuid       references user_account (id),
+    reason          text        not null,
+    excerpt         text        not null,
+    state           text        not null default 'OPEN',
+    created_at      timestamptz not null default now(),
+    resolved_by     uuid,
+    resolved_at     timestamptz,
+    resolution      text,
+    constraint message_report_state_chk check (state in ('OPEN', 'RESOLVED'))
+);
+create index message_report_open_idx on message_report (created_at) where state = 'OPEN';
+
+create table conversation_attachment (
+    id              uuid primary key,
+    conversation_id uuid        not null references conversation (id) on delete cascade,
+    uploader_id     uuid        not null references user_account (id),
+    size            bigint      not null,
+    created_at      timestamptz not null default now(),
+    expires_at      timestamptz not null
+);
+create index conversation_attachment_exp_idx on conversation_attachment (expires_at);
+
+-- V12 · Chamadas de vídeo E2EE (RF07). Só metadados: quem estava, quando, quanto durou e a qualidade da rede.
+-- Mídia passa pelo SFU (apps/rtc) cifrada quadro a quadro com a chave do grupo MLS da conversa; nada é gravado.
+
+create table call_session (
+    id               uuid primary key,
+    conversation_id  uuid        not null references conversation (id) on delete cascade,
+    started_by       uuid        not null references user_account (id),
+    state            text        not null default 'RINGING',
+    created_at       timestamptz not null default now(),
+    started_at       timestamptz,
+    ended_at         timestamptz,
+    max_participants int         not null default 1,
+    quality          text,
+    screen_shared    boolean     not null default false,
+    constraint call_session_state_chk check (state in ('RINGING', 'ACTIVE', 'ENDED', 'MISSED', 'DECLINED')),
+    constraint call_session_quality_chk check (quality is null or quality in ('BOA', 'REGULAR', 'RUIM'))
+);
+create index call_session_open_idx on call_session (conversation_id) where state in ('RINGING', 'ACTIVE');
+
+create table call_participant (
+    call_id    uuid        not null references call_session (id) on delete cascade,
+    user_id    uuid        not null references user_account (id) on delete cascade,
+    device_id  uuid        not null references messaging_device (id) on delete cascade,
+    joined_at  timestamptz not null default now(),
+    left_at    timestamptz,
+    quality    text,
+    primary key (call_id, user_id),
+    constraint call_participant_quality_chk check (quality is null or quality in ('BOA', 'REGULAR', 'RUIM'))
+);

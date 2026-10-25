@@ -12,6 +12,7 @@ import com.doctorexplorer.core.identity.repo.UserAccounts;
 import com.doctorexplorer.core.identity.service.LoggingMailer;
 import com.doctorexplorer.core.support.ApiClient;
 import com.doctorexplorer.core.support.MfaLogin;
+import com.doctorexplorer.core.support.TestCrm;
 import com.doctorexplorer.core.support.TestInfra;
 import com.datastax.oss.driver.api.core.CqlSession;
 import java.net.URI;
@@ -82,7 +83,7 @@ class AuditDashboardIT {
         ApiClient c = new ApiClient(mvc);
         c.register(tag + "+" + System.nanoTime() + "@example.org", PASSWORD);
         c.activateEmail(mailer);
-        assertThat(c.post("/api/v1/credentials", "{\"crmNumber\":\"12" + String.format("%04d", System.nanoTime() % 10_000) + "\",\"crmUf\":\"" + uf
+        assertThat(c.post("/api/v1/credentials", "{\"crmNumber\":\"" + TestCrm.next("12") + "\",\"crmUf\":\"" + uf
                 + "\",\"specialties\":[{\"specialtyCode\":\"UTI\",\"rqe\":\"11111\"}]}").getContentAsString()).contains("\"seal\":\"VERIFIED\"");
         return c;
     }
@@ -132,6 +133,29 @@ class AuditDashboardIT {
         var chain = auditService.search(viewer, q).chain();
         assertThat(chain.intact()).isFalse();
         assertThat(chain.broken().get(0)).containsEntry("seq", 3L).containsEntry("reason", "hash não confere: evento alterado");
+
+        // apagar o último evento (ou o fim da cadeia) não passa por "íntegra": a cabeça gravada aponta para ele
+        cql.execute("DELETE FROM de_audit.audit_event WHERE scope = ? AND day = ? AND seq = 4", scope, today);
+        var truncated = auditService.search(viewer, q).chain();
+        assertThat(truncated.intact()).isFalse();
+        assertThat(truncated.broken().get(0)).containsEntry("seq", 4L);
+    }
+
+    @Test
+    void concurrentAppendsToTheSameScopeKeepTheChainIntact() throws Exception {
+        String scope = "it:" + UUID.randomUUID();
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+            List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+            for (int i = 0; i < 24; i++) {
+                int n = i;
+                futures.add(pool.submit(() -> store.append(scope, AuditRecord.of("moderation.post_hide").resource("case_post", "p" + n), UUID.randomUUID(), Instant.now())));
+            }
+            for (var f : futures) f.get();
+        }
+        AuditService.Viewer viewer = new AuditService.Viewer(UUID.randomUUID(), "it", null, false, List.of(scope), null);
+        var result = auditService.search(viewer, new AuditService.Query(null, null, null, null, null, null, false, 0, 50));
+        assertThat(result.chain().intact()).isTrue();
+        assertThat(result.total()).isEqualTo(24);
     }
 
     @Test
@@ -147,8 +171,9 @@ class AuditDashboardIT {
         assertThat(created.getContentAsString()).contains("\"state\":\"PRONTA\"");
         String exportId = id(created.getContentAsString());
 
-        assertThat(admin.get("/api/v1/audit/exports/" + exportId + "/download").getStatus()).as("só quem pediu baixa").isEqualTo(404);
-        String dl = dpo.get("/api/v1/audit/exports/" + exportId + "/download").getContentAsString();
+        assertThat(admin.get("/api/v1/admin/audit/exports/" + exportId + "/download").getStatus()).as("só quem pediu baixa").isEqualTo(404);
+        assertThat(dpo.get("/api/v1/admin/audit/exports").getContentAsString()).contains(exportId);
+        String dl = dpo.get("/api/v1/admin/audit/exports/" + exportId + "/download").getContentAsString();
         assertThat(dl).contains("\"state\":\"BAIXADA\"").contains("\"urlTtlSeconds\":900");
         String csvUrl = group(Pattern.compile("\"csvUrl\":\"([^\"]+)\""), dl).replace("\\u0026", "&");
         String sig = group(Pattern.compile("\"signature\":\"([^\"]+)\""), dl);
@@ -219,7 +244,7 @@ class AuditDashboardIT {
         ApiClient auditor = new ApiClient(mvc);
         auditor.register(auditorEmail, PASSWORD);
         auditor.activateEmail(mailer);
-        auditor.post("/api/v1/credentials", "{\"crmNumber\":\"12" + String.format("%04d", System.nanoTime() % 10_000) + "\",\"crmUf\":\"TO\",\"specialties\":[]}");
+        auditor.post("/api/v1/credentials", "{\"crmNumber\":\"" + TestCrm.next("12") + "\",\"crmUf\":\"TO\",\"specialties\":[]}");
         String auditorId = id(auditor.get("/api/v1/me").getContentAsString());
         auditor.post("/api/v1/institutions/" + hospital + "/join", null);
         gestor.post("/api/v1/institutions/" + hospital + "/members/" + auditorId, null);
@@ -233,6 +258,14 @@ class AuditDashboardIT {
         assertThat(revealed).contains("\"patientRef\":\"pat-123\"").contains("\"patientRevealed\":true");
         assertThat(gestor.get("/api/v1/institutions/" + hospital + "/dashboard/audit?action=audit.view").getContentAsString())
                 .as("a revelação ficou registrada com a justificativa").contains("conferir acesso indevido");
+
+        // exportação com paciente: baixa enquanto é AUDITOR; rebaixado, não recebe novas URLs
+        String exportId = id(auditor.post("/api/v1/institutions/" + hospital + "/dashboard/audit/exports",
+                "{\"justification\":\"apuração de acesso indevido\",\"revealPatient\":true}").getContentAsString());
+        assertThat(auditor.get("/api/v1/institutions/" + hospital + "/dashboard/audit/exports/" + exportId + "/download").getStatus()).isEqualTo(200);
+        assertThat(gestor.put("/api/v1/institutions/" + hospital + "/members/" + auditorId + "/role", "{\"role\":\"STAFF_PHYSICIAN\"}").getStatus()).isEqualTo(200);
+        assertThat(auditor.get("/api/v1/institutions/" + hospital + "/dashboard/audit/exports/" + exportId + "/download").getStatus())
+                .as("perdeu o papel de auditor").isIn(403, 404);
 
         ApiClient outsider = verifiedDoctor("fora", "RR");
         assertThat(outsider.get("/api/v1/institutions/" + hospital + "/dashboard/audit").getStatus()).isEqualTo(404);

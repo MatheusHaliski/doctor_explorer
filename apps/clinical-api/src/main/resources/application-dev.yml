@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: ${DE_CLINICAL_DB_URL:jdbc:postgresql://localhost:5432/doctor_explorer_clinical}
+    username: ${DE_CLINICAL_DB_USER:clinical}
+    password: ${DE_CLINICAL_DB_PASSWORD:clinical}
+doctor-explorer:
+  # AC e carimbo do tempo SIMULADOS: documentos marcados "sem validade jurídica"
+  signature:
+    provider: simulated
+  clinical-secret: ${DE_CLINICAL_SECRET:ZGV2LWNsaW5pY2FsLXNlY3JldC1kZXYtY2xpbmljYWwtc2VjcmV0LTEyMw==}

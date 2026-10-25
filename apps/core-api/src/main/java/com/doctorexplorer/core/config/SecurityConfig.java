@@ -26,7 +26,8 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, AppSecretProperties props) throws Exception {
         AbsoluteSessionTimeoutFilter absoluteTimeout = new AbsoluteSessionTimeoutFilter(props);
         http
-            .csrf(csrf -> csrf.spa())
+            // o retorno de auditoria da clinical-api não usa cookie: vale o token interno no cabeçalho (ADR-008)
+            .csrf(csrf -> csrf.spa().ignoringRequestMatchers("/api/v1/internal/audit"))
             .headers(headers -> headers
                 .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'"))
                 .referrerPolicy(rp -> rp.policy(ReferrerPolicy.NO_REFERRER))
@@ -42,7 +43,10 @@ public class SecurityConfig {
                         "/api/v1/auth/reactivate", "/api/v1/auth/logout").permitAll()
                 .requestMatchers("/api/v1/ping", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/institutions", "/api/v1/institutions/*", "/api/v1/profiles/*").permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/audit/public-key").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/audit/public-key", "/api/v1/internal/public-key").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/internal/audit").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/public/documents/*").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/public/deliveries/*").permitAll()
                 // papéis sensíveis: papel + 2FA ativo. A auditoria também é lida pelo Encarregado (RF13, recorte de privacidade).
                 .requestMatchers("/api/v1/admin/audit/**", "/api/v1/admin/audit", "/api/v1/admin/dashboard/**")
                         .access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN", "DPO"))

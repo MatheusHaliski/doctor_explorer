@@ -8,6 +8,7 @@ import com.doctorexplorer.core.identity.repo.UserAccounts;
 import com.doctorexplorer.core.identity.service.LoggingMailer;
 import com.doctorexplorer.core.identity.service.Totp;
 import com.doctorexplorer.core.support.ApiClient;
+import com.doctorexplorer.core.support.TestCrm;
 import com.doctorexplorer.core.support.TestInfra;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -134,7 +135,7 @@ public class AccessMatrixIT {
 
     /** Prefixo 12 = Regular "Ana Ribeiro" na fonte simulada; sufixo único para não colidir entre atores. */
     private static String uniqueCrm() {
-        return "12" + String.format("%04d", System.nanoTime() % 10_000);
+        return TestCrm.next("12");
     }
 
     /** Lê as linhas da seção "## Matriz de acesso": `| rota | visitante | … |`. */

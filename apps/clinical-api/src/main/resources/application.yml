@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: clinical-api
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    # banco próprio (ADR-001): nunca o mesmo usuário nem o mesmo banco da core-api
+    url: ${DE_CLINICAL_DB_URL:jdbc:postgresql://localhost:5432/doctor_explorer_clinical}
+    username: ${DE_CLINICAL_DB_USER:clinical}
+    password: ${DE_CLINICAL_DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8081}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+doctor-explorer:
+  # Base64 de 32+ bytes; obrigatório. Em produção a chave mestra dos cofres vem do KMS (ADR-011).
+  clinical-secret: ${DE_CLINICAL_SECRET:}
+  core:
+    base-url: ${DE_CORE_BASE_URL:http://localhost:8080}
+    # SPKI Base64 da chave pública do token interno; vazio = busca em /api/v1/internal/public-key
+    public-key: ${DE_CORE_INTERNAL_PUBLIC_KEY:}
+    timeout: 10s
+  # RF09 · provedor ICP-Brasil (ADR-007). Sem contrato configurado, "unavailable": a assinatura falha fechada.
+  signature:
+    provider: ${DE_SIGNATURE_PROVIDER:unavailable}
+  # endereço do web impresso no QR code e no link do paciente
+  public-base-url: ${DE_PUBLIC_BASE_URL:http://localhost:3000}
+  # base pública da fachada (fullUrl dos Bundles): o navegador chega por /api/v1/clinical/fhir/r4 na core-api
+  fhir:
+    base-url: ${DE_FHIR_BASE_URL:http://localhost:3000/api/v1/clinical/fhir/r4}
+
+logging:
+  level:
+    # nada de corpo de requisição nos logs: conteúdo clínico nunca em log
+    org.springframework.web: WARN

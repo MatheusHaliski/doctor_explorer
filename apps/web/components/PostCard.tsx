@@ -11,6 +11,7 @@ export type Post = {
   summary: string;
   tags: string[];
   comments: number;
+  mediaCount?: number;
   opinions: number;
   authorId: string;
   authorName: string;
@@ -41,6 +42,7 @@ export function PostCard({ post }: { post: Post }) {
           <span className={`status ${post.state}`}>{STATES[post.state] ?? post.state}</span>
           <span className="text-sm text-text-3">
             {post.opinions} {post.opinions === 1 ? "parecer" : "pareceres"} · {post.comments} {post.comments === 1 ? "comentário" : "comentários"}
+            {post.mediaCount ? ` · ${post.mediaCount} ${post.mediaCount === 1 ? "imagem" : "imagens"}` : ""}
           </span>
           <span className="spacer" />
           {post.tags.length > 0 && (

@@ -1,0 +1,5 @@
+doctor-explorer:
+  # AC e carimbo do tempo SIMULADOS: documentos marcados "sem validade jurídica"
+  signature:
+    provider: simulated
+  clinical-secret: aXQtY2xpbmljYWwtc2VjcmV0LWl0LWNsaW5pY2FsLXNlY3JldC0xMjM0NTY=

@@ -4,8 +4,12 @@ titulo: Prontuário eletrônico simplificado (SOAP) vinculado à discussão
 status: especificado
 cards: [US16, US17, US18]
 paths:
-  - apps/clinical-api/src/main/java/**/ehr/**
-  - apps/clinical-api/src/main/java/**/fhir/**
+  - apps/clinical-api/**
+  - apps/core-api/src/main/java/**/internal/**
+  - apps/web/app/(app)/prontuario/**
+  - apps/web/components/ehr/**
+  - apps/web/lib/ehr.ts
+  - infra/postgres/**
 ---
 
 # RF08 · Prontuário eletrônico simplificado (SOAP) vinculado à discussão
@@ -30,6 +34,19 @@ O PEP vive na **`clinical-api`**, com banco e chaves separados (ADR-001). Modelo
 7. Toda leitura e escrita gera `AuditEvent` (quem, quando, qual paciente, por quê).
 8. `/fhir/r4/Composition`, `Encounter`, `Patient`, `Practitioner`, `Condition`, `Provenance` expostos e
    validados contra os perfis no CI.
+
+### Como o MVP cumpre cada critério
+
+| # | Implementação |
+|---|---|
+| 1 | A `clinical-api` só aceita o token interno da core-api (ADR-008) e recusa selo diferente de VERIFIED. Cofre pessoal do médico criado no primeiro uso (upsert, seguro em paralelo); nome, nascimento e CPF cifrados por cofre (AES-256-GCM, DEK por cofre embrulhada pela KEK; AAD "tabela.coluna:id"). Busca por nome com índice cego (HMAC por cofre dos prefixos de cada palavra, sem acento): o banco não vê nome nem termo buscado. O cofre da instituição está modelado (`owner_type = INSTITUTION`) e entra com o RF11. |
+| 2 | S, O, A (texto + CID-10 da tabela do DATASUS embarcada + SNOMED CT opcional por formato) e P. O editor salva o rascunho a cada 5 s quando algo mudou (`PUT /compositions/{id}`). Assinar exige S, O, P e ao menos um CID-10. |
+| 3 | `links[]` com `{type: POST \| CONVERSATION \| CALL, ref: id opaco}`. "Registrar no prontuário" no caso abre `/prontuario/nova?post={id}`; a core-api não grava nada do paciente e o fórum não recebe nada da nota. |
+| 4 | Assinatura eletrônica avançada: sudo recente (claim `sudoUntil` do token) + carimbo de tempo do servidor + Ed25519 da `clinical-api` sobre o SHA-256 do JSON canônico (inclui o hash da versão anterior). ⚖️ ICP-Brasil para a nota segue em validação com o Diretor-Técnico. |
+| 5 | Assinada é imutável na API (409 `nota-imutavel`) e no banco (gatilho `soap_composition_guard` recusa qualquer UPDATE de conteúdo ou DELETE). Correção = `POST /amend` com motivo (≥ 10 caracteres) → nova versão em rascunho; ao assinar, a anterior vira RETIFICADA e aponta para a nova; `GET /versions` mostra todas, cada uma com a integridade conferida na hora. |
+| 6 | Sem rota de exclusão de paciente ou nota assinada; `last_record_at` marca o início do prazo de 20 anos. A exclusão da conta social (RF10) não toca o banco nem a chave da `clinical-api` (segredo e banco próprios). |
+| 7 | Toda leitura e escrita chama `POST /api/v1/internal/audit` da core-api com o mesmo token: `clinical.patient_list/search/create/read`, `clinical.composition_create/draft/read/versions/sign/amend/discard`, `clinical.fhir_read`; `patientRef` é o id opaco do cofre; o termo buscado e o conteúdo nunca vão para o evento. Sem auditoria a operação falha (503) e a escrita é desfeita. |
+| 8 | `/fhir/r4` (somente leitura) com Patient, Practitioner, Encounter, Composition (LOINC 11506-3, seções S/O/A/P com LOINC, `attester` e `relatesTo: replaces`), Condition (CID-10 BR), Provenance (assinatura) e `metadata`; `FhirValidationIT` valida tudo contra os perfis base R4 no CI. Perfis da RNDS ⏳. |
 
 ## Base legal
 
@@ -145,16 +162,19 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    UI[Web: editor SOAP] --> EC[EhrController]
-    UI --> FC[/fhir/r4 FhirController/]
+    UI[Web: /prontuario · PatientPicker · NoteEditor] -- sessão + CSRF --> GW[core-api · ClinicalGatewayController]
+    GW --> TK[InternalTokens · Ed25519, 60 s]
+    GW -- DE-Internal token --> F[clinical-api · InternalAuthFilter]
+    F --> EC[EhrController]
+    F --> FC[FhirController /fhir/r4]
+    F --> TC[TerminologyController · CID-10]
     EC --> ES[EhrService]
-    FC --> FF[FhirFacade · HAPI FHIR]
-    FF --> ES
-    ES --> TS[TerminologyService<br/>CID-10 · SNOMED CT · LOINC]
-    ES --> VK[VaultKeyService] --> KMS[[KMS]]
-    ES --> TSA[Carimbo de tempo]
-    ES --> PGC[(PostgreSQL clínico · réplicas)]
-    ES --> AU[Auditoria · Cassandra + S3 Object Lock]
+    FC --> FM[FhirMapper · HAPI FHIR] --> ES
+    ES --> VC[VaultCrypto · DEK por cofre]
+    ES --> BI[BlindIndex · HMAC]
+    ES --> NS[NoteSigner · Ed25519]
+    ES --> PGC[(PostgreSQL clínico · gatilho de imutabilidade)]
+    ES --> CA[CoreAudit] -- mesmo token --> AU[core-api · /internal/audit → cadeia RF13]
 ```
 
 ## Atividades
@@ -181,7 +201,13 @@ flowchart TD
 
 | Camada | Artefato | Status |
 |---|---|---|
-| Migração | `clinical V1__ehr.sql` | ⏳ |
-| Domínio | `ClinicalVault`, `Patient`, `Encounter`, `SoapComposition` | ⏳ |
-| FHIR | `FhirFacade`, perfis BR | ⏳ |
-| Testes | `SoapSignIT`, `FhirValidationIT` (validador HAPI) | ⏳ |
+| Serviço | `apps/clinical-api` (Spring Boot 4.1, banco e segredo próprios, Jib, porta 8081) | ✅ |
+| Migração | `clinical V1__ehr.sql` (cofre, médico, paciente cifrado, índice cego, encontro, nota SOAP versionada, gatilho de imutabilidade) | ✅ |
+| Domínio | `ClinicalVault`, `Practitioner`, `Patient`, `Encounter`, `SoapComposition` (RASCUNHO → ASSINADA → RETIFICADA, DESCARTADA) | ✅ |
+| Segurança | token interno (`InternalTokens` na core-api, que também admite no SFU das chamadas do RF07 com `issueRtc`, `InternalTokenVerifier`/`InternalAuthFilter` na clinical-api), `VaultCrypto`, `BlindIndex`, `NoteSigner` | ✅ |
+| Integração | `ClinicalGatewayController` (`/api/v1/clinical/**`, só recursos conhecidos — `patients`, `compositions`, `terminology`, `documents`, `document-templates`, `catalog`, `fhir/r4` — com segmentos simples e consulta já codificada) sobre o `ClinicalClient` (esquema, host e porta vêm só da configuração; volta só `content-type`, `content-disposition`, `etag`, `last-modified` e `location`, sempre `no-store`), `InternalController` (`/api/v1/internal/public-key`, `/api/v1/internal/audit`; o token PUBLIC do RF09 só registra `clinical.document_validate` e `clinical.document_delivery_open`, com ator anônimo), `CoreAudit` | ✅ |
+| Terminologia | CID-10 completo do DATASUS (14 496 códigos) em `terminology/cid10.tsv`, busca por código e palavras | ✅ |
+| FHIR | `FhirMapper`, `FhirController`, validação HAPI no CI (inclui `MedicationRequest` e `ServiceRequest` do RF09); perfis BR da RNDS | ✅ / ⏳ RNDS |
+| Web | `/prontuario` (cofre), `/prontuario/pacientes/[id]` (notas e, do RF09, receitas e pedidos de exame do paciente), `/prontuario/nova?post=` (a partir da discussão), `/prontuario/notas/[id]` (editor com rascunho a cada 5 s, CID-10, assinar com sudo, corrigir, versões) | ✅ |
+| Infra | `infra/postgres/10-clinical.sql` (banco e usuário separados no Compose), job `clinical-api` no CI, CodeQL e Trivy na imagem; KMS e instância separada em produção | ✅ / ⏳ produção |
+| Testes | `CryptoTest`, `Cid10Test`, `InternalTokenVerifierTest`, `EhrIT` (token, selo, cofre isolado, busca cega, rascunho → assinatura → imutável na API e no banco → retificação, auditoria sem dado do paciente, falha fechada sem auditoria, primeiro uso em paralelo), `FhirValidationIT`, `ClinicalGatewayIT` (core), e2e no navegador | ✅ |

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.doctorexplorer.core.credentialing.service.CredentialingService;
 import com.doctorexplorer.core.identity.service.LoggingMailer;
 import com.doctorexplorer.core.support.ApiClient;
+import com.doctorexplorer.core.support.TestCrm;
 import com.doctorexplorer.core.support.TestInfra;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ class CredentialingIT {
 
     /** CRM único por teste; o prefixo decide a resposta da fonte simulada (ver FakeCfmRegistry). */
     static String crm(String prefix) {
-        return prefix + String.format("%04d", System.nanoTime() % 10_000);
+        return TestCrm.next(prefix);
     }
 
     @Test

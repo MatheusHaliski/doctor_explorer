@@ -64,7 +64,7 @@ public class MetricsService {
         // chamadas (RF07) vêm da auditoria: eventos call.start no escopo
         long calls = 0;
         Set<UUID> callers = new HashSet<>();
-        for (AuditEvent e : audit.range(auditScope, LocalDate.ofInstant(from, ZoneOffset.UTC), LocalDate.ofInstant(to, ZoneOffset.UTC))) {
+        for (AuditEvent e : audit.committed(auditScope, LocalDate.ofInstant(from, ZoneOffset.UTC), LocalDate.ofInstant(to, ZoneOffset.UTC)).events()) {
             if (e.action().equals("call.start") && (members == null || members.contains(e.actorId()))) {
                 calls++;
                 if (e.actorId() != null) callers.add(e.actorId());

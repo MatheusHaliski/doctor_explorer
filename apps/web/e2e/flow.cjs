@@ -1,7 +1,7 @@
 /*
  * Teste ponta a ponta no navegador: web real (Next) + core-api (perfil dev) + PostgreSQL + Valkey.
  * Login de verdade, sem mock: cadastro → código do mailer dev (lido do log da API) → selo CRM/RQE na fonte
- * simulada → grupo → caso bloqueado por identificador → caso publicado → feed por eixos → LGPD → sudo →
+ * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → chat E2EE com MLS (RF06) → chamada de vídeo E2EE (RF07) → receita PAdES, validador público e link de uso único (RF09) → feed por eixos → LGPD → sudo →
  * tema escuro → mobile → logout → login.
  *
  * Uso: API_LOG=<log da core-api> BASE=http://localhost:3000 [SHOTS=dir] [PLAYWRIGHT_ROOT=<node_modules>] node e2e/flow.cjs
@@ -44,6 +44,7 @@ async function apiPost(page, path, body) {
 }
 async function registerVerified(ctx, { name, email, crm, specialties }) {
   const p = await ctx.newPage();
+  p.on("pageerror", (e) => errors.push(`[${name}] ` + String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
   await p.goto(BASE + "/cadastro");
   await p.fill("#displayName", name); await p.fill("#email", email); await p.fill("#birthDate", "1988-07-01"); await p.fill("#password", password);
   await p.check("#acceptTerms"); await p.check("#acceptPrivacy");
@@ -69,10 +70,11 @@ const errors = []; // erros de JS e console.error do navegador
 const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${name}${extra ? " · " + extra : ""}`); if (!cond) throw new Error("FALHOU: " + name + " " + extra); };
 
 (async () => {
-  const browser = await chromium.launch();
+  // câmera e microfone falsos para as chamadas do RF07
+  const browser = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "pt-BR" });
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("pageerror", (e) => errors.push(String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
   // 4xx esperados (422 de validação, 401 de senha errada) aparecem como "Failed to load resource": não são erro da página
   page.on("console", (m) => { if (m.type() === "error" && !m.text().startsWith("Failed to load resource")) errors.push(`[${page.url()}] ${m.text()}`); });
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
@@ -146,10 +148,144 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await page.fill("#complaint", "Vasopressor em dose alta há 36 h, lactato em queda lenta.");
   await page.fill("#question", "Alguém usaria corticoide neste ponto?");
   await page.fill("#tags", "sepse, vasopressor");
+
+  // RF05: imagem vai direto para a quarentena; prévia anonimizada; tarja manual; aprovação explícita
+  await page.setInputFiles("#media-file", path.join(__dirname, "fixtures", "lesao-com-laudo.jpg"));
+  await page.getByText("Revise a prévia (versão 1)").waitFor({ timeout: 90_000 });
+  const report = await page.locator(".media-review ul").innerText();
+  ok("prévia sem GPS e com texto coberto", /GPS/.test(report) && /trechos? de texto cobertos?/.test(report), report.replace(/\n/g, " | ").slice(0, 120));
+  await shot("07a-midia-previa");
+  await page.locator(".media-frame").scrollIntoViewIfNeeded();
+  const frame = await page.locator(".media-frame").boundingBox();
+  await page.mouse.move(frame.x + frame.width * 0.62, frame.y + frame.height * 0.48);
+  await page.mouse.down();
+  await page.mouse.move(frame.x + frame.width * 0.85, frame.y + frame.height * 0.9, { steps: 6 });
+  await page.mouse.up();
+  await page.getByRole("button", { name: "Aplicar tarjas" }).click();
+  await page.getByText("Revise a prévia (versão 2)").waitFor();
+  ok("tarja manual gera nova versão da prévia", (await page.getByText("1 tarja manual sua.").count()) === 1);
+  ok("aprovar exige confirmar a revisão", await page.getByRole("button", { name: "Aprovar imagem" }).isDisabled());
+  await page.getByLabel("Revisei a prévia e a lista do que foi removido").check();
+  await page.getByRole("button", { name: "Aprovar imagem" }).click();
+  await page.getByRole("list", { name: "Imagens aprovadas" }).locator("img").waitFor();
+  ok("imagem aprovada pronta para anexar", true);
+
   await page.getByRole("button", { name: "Publicar no grupo" }).click();
   await page.waitForURL(/\/casos\/[0-9a-f-]{36}$/);
   ok("caso publicado → página do caso", true);
+  const caseImg = page.locator(".case-media img");
+  await caseImg.waitFor();
+  ok("imagem anonimizada aparece no caso", await caseImg.evaluate((img) => img.complete && img.naturalWidth > 0));
   await shot("07-caso");
+
+  // RF08: "Registrar no prontuário" a partir da discussão → paciente no cofre → SOAP → assinatura com sudo → correção
+  await page.getByRole("link", { name: "Registrar no prontuário" }).click();
+  await page.waitForURL(/\/prontuario\/nova\?post=/);
+  await page.getByRole("button", { name: "Novo paciente" }).click();
+  await page.fill("#name", `Helena Duarte ${n}`);
+  await page.fill("#birthDate", "1964-03-02");
+  await page.fill("#cpf", "529.982.247-25");
+  await page.getByRole("button", { name: "Cadastrar e registrar" }).click();
+  await page.waitForURL(/\/prontuario\/notas\/[0-9a-f-]{36}$/);
+  await page.getByRole("heading", { name: /^Nota SOAP/ }).waitFor();
+  ok("nota aberta vinculada à discussão", (await page.getByRole("link", { name: "discussão vinculada" }).count()) === 1);
+  await page.fill("#subjective", "Dispneia há 3 dias, febre 38,5 °C.");
+  await page.fill("#objective", "SatO2 91%, crepitações em base direita.");
+  await page.fill("#assessment", "Pneumonia comunitária.");
+  await page.fill("#cid10-q", "J18.9");
+  await page.getByRole("button", { name: /^J18\.9 · / }).click();
+  await page.fill("#plan", "Amoxicilina-clavulanato 7 dias; retorno em 48 h.");
+  await page.getByText(/^Rascunho salvo/).waitFor({ timeout: 15_000 });
+  ok("rascunho salvo sozinho em até 5 s", true);
+  await shot("07b-soap-rascunho");
+  await page.getByRole("button", { name: "Assinar nota" }).click();
+  await page.getByRole("heading", { name: "Confirme sua identidade para assinar" }).waitFor();
+  await page.fill("#sudo-password", password);
+  await page.getByRole("button", { name: "Confirmar e assinar" }).click();
+  await page.getByText("Integridade conferida agora").waitFor();
+  ok("nota assinada com sudo e integridade conferida", (await page.locator("#plan").getAttribute("readonly")) !== null);
+  await page.getByRole("button", { name: "Corrigir (nova versão)" }).click();
+  await page.fill("#reason", "Dose ajustada após resultado da cultura");
+  await page.getByRole("button", { name: "Abrir nova versão" }).click();
+  await page.getByRole("heading", { name: /versão 2/ }).waitFor();
+  ok("correção abre a versão 2 com o motivo", (await page.getByText("Motivo da correção: Dose ajustada").count()) === 1);
+  ok("versão assinada continua listada", (await page.getByRole("link", { name: "Versão 1" }).count()) === 1);
+  await shot("07c-soap-versao-2");
+
+  // RF09: receita a partir do prontuário → catálogo CMED (controle especial bloqueado) → revisão → assinatura PAdES →
+  // validador público sem login → link de uso único do paciente → cancelamento com motivo
+  await page.locator('a[href^="/prontuario/pacientes/"]').first().click();
+  await page.getByRole("button", { name: "Nova receita" }).click();
+  await page.waitForURL(/\/prontuario\/documentos\/[0-9a-f-]{36}$/);
+  await page.getByRole("heading", { name: /^Receita · / }).waitFor();
+  await page.fill("#med-q", "alprazolam");
+  await page.getByText(/Medicamentos de controle especial/).waitFor();
+  ok("controle especial aparece bloqueado", await page.locator(".cid-results button").first().isDisabled());
+  await page.fill("#med-q", "amoxicilina 500 mg cap");
+  await page.locator(".cid-results button:not([disabled])").first().click();
+  await page.locator("#med-0-dose").waitFor();
+  ok("posologia de partida pela apresentação", (await page.locator("#med-0-unit").inputValue()) === "cápsula" && (await page.locator("#med-0-days").inputValue()) === "7");
+  await page.fill("#med-0-qty", "1 caixa");
+  await shot("07d-receita-itens");
+  await page.getByRole("button", { name: "Salvar e revisar" }).click();
+  await page.getByRole("heading", { name: "Confira antes de assinar" }).waitFor();
+  ok("revisão mostra a posologia por extenso", (await page.locator(".doc-summary").innerText()).includes("de 8 em 8 horas"));
+  ok("antimicrobiano avisa 2 vias e 10 dias", (await page.getByText(/2 vias/).count()) === 1);
+  await page.getByLabel("Conferi paciente, itens e posologia").check();
+  await page.getByRole("button", { name: "Assinar com certificado ICP-Brasil" }).click();
+  const signedOrSudo = await Promise.race([
+    page.getByRole("heading", { name: "Validação" }).waitFor({ timeout: 30_000 }).then(() => "signed"),
+    page.getByRole("heading", { name: "Confirme sua identidade para assinar" }).waitFor({ timeout: 30_000 }).then(() => "sudo"),
+  ]);
+  if (signedOrSudo === "sudo") {
+    await page.fill("#sudo-password", password);
+    await page.getByRole("button", { name: "Confirmar e assinar" }).click();
+    await page.getByRole("heading", { name: "Validação" }).waitFor({ timeout: 30_000 });
+  }
+  await page.getByText("Receita assinada.").waitFor();
+  const rxCode = (await page.locator(".doc-code").innerText()).trim();
+  ok("receita assinada com código de validação", /^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/.test(rxCode), rxCode);
+  ok("assinatura PAdES-B-T", (await page.getByText(/PAdES-B-T/).count()) > 0);
+  const [pdfDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Baixar PDF assinado" }).click()]);
+  const pdf = fs.readFileSync(await pdfDownload.path());
+  ok("PDF assinado baixado", pdf.subarray(0, 5).toString() === "%PDF-" && pdf.includes("/ByteRange") && pdf.includes("pdfaid:part"));
+  await page.getByText("Só gerar o link", { exact: true }).click();
+  await page.getByRole("button", { name: "Gerar link" }).click();
+  const patientLink = await page.locator("#patient-link").inputValue();
+  ok("link de uso único gerado", /\/receita\/[A-Za-z0-9_-]{20,}$/.test(patientLink));
+  await shot("07e-receita-assinada");
+
+  const visitor = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR" });
+  const vpage = await visitor.newPage();
+  vpage.on("pageerror", (e) => errors.push(String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
+  await vpage.goto(BASE + "/validar");
+  await vpage.fill("#code", rxCode.toLowerCase().replace(/-/g, " "));
+  await vpage.getByRole("button", { name: "Validar" }).click();
+  await vpage.getByText("Documento válido.").waitFor();
+  const shown = await vpage.locator(".doc-facts").innerText();
+  ok("validador sem login: válido, iniciais e CRM", shown.includes(rxCode) && /CRM \d+\/[A-Z]{2}/.test(shown) && !shown.includes("Helena"));
+  ok("validador avisa que a ICP-Brasil é simulada", (await vpage.getByText(/ICP-Brasil simulada/).count()) === 1);
+  if (SHOTS) await vpage.screenshot({ path: path.join(SHOTS, "07f-validador-publico.png"), fullPage: true });
+  await vpage.goto(BASE + new URL(patientLink).pathname);
+  const [patientPdf] = await Promise.all([vpage.waitForEvent("download"), vpage.getByRole("button", { name: "Baixar PDF" }).click()]);
+  ok("paciente baixa o mesmo PDF", fs.readFileSync(await patientPdf.path()).equals(pdf));
+  await vpage.reload();
+  await vpage.getByRole("button", { name: "Baixar PDF" }).click();
+  await vpage.getByText(/já foi usado/).waitFor();
+  ok("link do paciente é de uso único", true);
+  if (SHOTS) await vpage.screenshot({ path: path.join(SHOTS, "07g-link-usado.png"), fullPage: true });
+
+  await page.reload();
+  await page.getByRole("heading", { name: "Envios" }).waitFor();
+  await page.locator("summary", { hasText: "Cancelar documento" }).click();
+  await page.fill("#cancel-reason", "Dose revista; nova receita emitida");
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Cancelar documento" }).click();
+  await page.getByText(/^Cancelado em/).waitFor();
+  await vpage.goto(BASE + "/validar/" + rxCode);
+  await vpage.getByText("Documento cancelado pelo médico.").waitFor();
+  ok("cancelado aparece no validador, sem o motivo", (await vpage.getByText("Dose revista").count()) === 0);
+  await visitor.close();
 
   // feed segmentado
   await page.goto(BASE + "/feed");
@@ -222,6 +358,119 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await bruno.locator(".card", { hasText: "Dermatologia" }).getByRole("button", { name: "Entrar" }).click();
   await bruno.getByText("Pedido enviado ao moderador do grupo.").waitFor();
   ok("Bruno: vínculo pedido e entrada em grupo sem RQE fica pendente", true);
+
+  // RF06: chat E2EE (MLS) entre Ana e Bruno, cada um no seu navegador; depois um segundo aparelho da Ana entra pela frase
+  const activate = async (p) => {
+    await p.goto(BASE + "/mensagens");
+    await p.getByRole("button", { name: "Ativar neste aparelho" }).click();
+    const phrase = (await p.locator(".doc-code").innerText()).trim();
+    await p.getByRole("button", { name: "Anotei a frase" }).click();
+    await p.getByRole("heading", { name: "Mensagens", exact: true }).waitFor();
+    return phrase;
+  };
+  const anaPhrase = await activate(page);
+  ok("primeiro aparelho gera frase de recuperação", /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(anaPhrase));
+  await activate(bruno);
+  await page.getByRole("button", { name: "Nova conversa" }).click();
+  await page.fill("#contact-q", "Bruno Tav");
+  await page.locator(`button[data-user-id="${brunoId}"]`).click();
+  await page.getByRole("button", { name: "Começar conversa" }).click();
+  await page.waitForURL(/\/mensagens\/[0-9a-f-]{36}$/);
+  const chatId = page.url().split("/").pop();
+  await page.getByText("Criptografada ponta a ponta").first().waitFor();
+  await page.fill("#composer", "Oi Bruno, segue o caso da UTI 3");
+  await page.keyboard.press("Enter");
+  await page.locator(".bubble.own", { hasText: "segue o caso da UTI 3" }).waitFor();
+  await bruno.goto(BASE + "/mensagens/" + chatId);
+  await bruno.locator(".bubble", { hasText: "segue o caso da UTI 3" }).waitFor({ timeout: 30_000 });
+  ok("mensagem cifrada chega e é decifrada no aparelho do Bruno", true);
+  await bruno.fill("#composer", "Recebido, vejo agora");
+  await bruno.getByRole("button", { name: "Enviar" }).click();
+  await page.locator(".bubble:not(.own)", { hasText: "Recebido, vejo agora" }).waitFor({ timeout: 30_000 });
+  const wire = await page.evaluate((id) => fetch(`/api/v1/messaging/conversations/${id}/messages?after=0`).then((r) => r.text()), chatId);
+  ok("servidor só tem texto cifrado", wire.includes('"kind":"APP"') && !wire.includes("segue o caso") && !wire.includes("Recebido"));
+  await page.getByRole("button", { name: "Código de segurança" }).click();
+  await bruno.getByRole("button", { name: "Código de segurança" }).click();
+  const codeA = (await page.locator(".safety-code").innerText()).trim();
+  const codeB = (await bruno.locator(".safety-code").innerText()).trim();
+  ok("código de segurança igual nos dois aparelhos", /^(\d{5} ){11}\d{5}$/.test(codeA) && codeA === codeB, codeA);
+  await page.fill("#composer", "Paciente João Silva piorou");
+  await page.getByText("Parece haver paciente identificável").waitFor();
+  ok("aviso local de paciente identificável com atalho ao prontuário", (await page.getByRole("link", { name: "prontuário" }).last().getAttribute("href")) === "/prontuario/nova");
+  await page.fill("#composer", "");
+  await page.setInputFiles("#chat-file", { name: "exame.txt", mimeType: "text/plain", buffer: Buffer.from("Hb 9,1 g/dL") });
+  await page.locator(".bubble.own", { hasText: "exame.txt" }).waitFor({ timeout: 30_000 });
+  await bruno.locator(".bubble", { hasText: "exame.txt" }).waitFor({ timeout: 30_000 });
+  const [att] = await Promise.all([bruno.waitForEvent("download"), bruno.locator(".bubble", { hasText: "exame.txt" }).getByRole("button").click()]);
+  ok("anexo cifrado no aparelho e aberto do outro lado", fs.readFileSync(await att.path(), "utf8") === "Hb 9,1 g/dL");
+  await shot("08a-chat-e2ee");
+
+  const ana2Ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR" });
+  const ana2 = await ana2Ctx.newPage();
+  ana2.on("pageerror", (e) => errors.push("[Ana 2] " + String(e) + " @ " + (e.stack || "").split("\n").slice(0, 4).join(" | ")));
+  await ana2.goto(BASE + "/login");
+  await ana2.fill("#email", email); await ana2.fill("#password", password);
+  await ana2.getByRole("button", { name: "Entrar" }).click();
+  await ana2.waitForURL("**/feed");
+  await ana2.goto(BASE + "/mensagens");
+  await ana2.getByRole("button", { name: "Ativar neste aparelho" }).click();
+  await ana2.getByRole("heading", { name: "Aprove este aparelho" }).waitFor();
+  await ana2.fill("#recovery", anaPhrase.toLowerCase().replace(/-/g, " "));
+  await ana2.getByRole("button", { name: "Aprovar com a frase" }).click();
+  await ana2.getByRole("heading", { name: "Mensagens", exact: true }).waitFor({ timeout: 30_000 });
+  ok("segundo aparelho aprovado pela frase de recuperação", true);
+  await ana2.goto(BASE + "/mensagens/" + chatId);
+  // quem estiver com a conversa aberta adiciona o aparelho novo ao grupo MLS
+  await ana2.getByText("Nenhuma mensagem ainda").waitFor({ timeout: 45_000 });
+  await bruno.fill("#composer", "Para os dois aparelhos da Ana");
+  await bruno.getByRole("button", { name: "Enviar" }).click();
+  await ana2.locator(".bubble", { hasText: "Para os dois aparelhos da Ana" }).waitFor({ timeout: 30_000 });
+  await page.locator(".bubble", { hasText: "Para os dois aparelhos da Ana" }).waitFor({ timeout: 30_000 });
+  ok("aparelho novo entra no grupo e recebe só o que vem depois", (await ana2.locator(".bubble", { hasText: "segue o caso" }).count()) === 0);
+  if (SHOTS) await ana2.screenshot({ path: path.join(SHOTS, "08b-chat-segundo-aparelho.png"), fullPage: true });
+  await ana2Ctx.close();
+
+  await bruno.getByRole("button", { name: "Denunciar" }).click();
+  await bruno.locator(".bubble", { hasText: "segue o caso da UTI 3" }).getByRole("checkbox").check();
+  await bruno.fill("#report-reason", "Teste de denúncia encaminhada ao moderador");
+  await bruno.getByRole("button", { name: /^Encaminhar 1 mensagem/ }).click();
+  await bruno.getByText("Denúncia enviada à moderação").waitFor();
+  ok("denúncia encaminha o trecho decifrado escolhido por quem denuncia", true);
+
+  // RF07: chamada de vídeo E2EE na mesma conversa; a chave de cada quadro vem do grupo MLS
+  await page.getByRole("button", { name: "Chamada de vídeo" }).click();
+  await page.waitForURL(/\/chamadas\/[0-9a-f-]{36}$/);
+  const callId = page.url().split("/").pop();
+  await page.getByText("Sem gravação.").waitFor();
+  await page.getByRole("button", { name: "Entrar na chamada" }).click();
+  await bruno.goto(BASE + "/mensagens");
+  await bruno.getByRole("alertdialog").getByRole("button", { name: "Atender" }).click({ timeout: 20_000 });
+  await bruno.waitForURL("**/chamadas/" + callId);
+  await bruno.getByRole("button", { name: "Entrar na chamada" }).click();
+  const decrypting = async (p) => p.waitForFunction(() => {
+    const s = window.__deCall && window.__deCall.state();
+    const remote = [...document.querySelectorAll("video")].filter((v) => !v.muted);
+    return s && s.e2ee.decrypted > 30 && remote.some((v) => v.videoWidth > 0);
+  }, null, { timeout: 45_000 });
+  await decrypting(page);
+  await decrypting(bruno);
+  await page.getByText("Criptografada ponta a ponta", { exact: true }).waitFor();
+  ok("chamada conectada: vídeo do outro lado decifrado com a chave do grupo MLS", true);
+  await shot("08c-chamada-e2ee");
+  // sem a chave certa nada abre: o que passa pelo SFU é só cifra
+  const before = await page.evaluate(() => window.__deCall.state().e2ee);
+  await bruno.evaluate(() => window.__deCall.breakKey());
+  await page.waitForTimeout(3000);
+  const after = await page.evaluate(() => window.__deCall.state().e2ee);
+  const brunoAfter = await bruno.evaluate(() => window.__deCall.state().e2ee);
+  ok("com outra chave os quadros não abrem (SFU só encaminha cifra)", after.failed - before.failed > 20 && brunoAfter.failed > 20, JSON.stringify({ before, after, brunoAfter }));
+  await page.getByRole("button", { name: "Sair da chamada" }).click();
+  await page.getByRole("heading", { name: "Chamada encerrada" }).waitFor();
+  ok("ao encerrar sugere registrar no prontuário", (await page.getByRole("link", { name: "Registrar no prontuário" }).count()) === 1);
+  await bruno.getByRole("button", { name: "Sair da chamada" }).click();
+  await bruno.getByRole("heading", { name: "Chamada encerrada" }).waitFor();
+  const callMeta = await page.evaluate((id) => fetch(`/api/v1/calls/${id}`).then((r) => r.json()), callId);
+  ok("só metadados: chamada encerrada com dois participantes", callMeta.state === "ENDED" && callMeta.participants.length === 2, callMeta.state);
 
   // Ana aceita o vínculo na gestão; o perfil de Bruno mostra o convite para outras instituições que ela gere
   await page.goto(BASE + `/instituicoes/${hospitalId}/gestao`);
@@ -346,6 +595,11 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   await brunoRow.getByRole("button", { name: "Aprovar entrada" }).click();
   await page.getByText("Bruno Tavares entrou em Dermatologia.").waitFor();
   ok("moderadora aprova selo e entrada em grupo", true);
+  const reportCard = page.locator("article.item", { hasText: "Teste de denúncia encaminhada ao moderador" }).last();
+  ok("denúncia chega à moderação só com o trecho encaminhado", (await reportCard.locator(".report-excerpt").innerText()).includes("segue o caso da UTI 3"));
+  await reportCard.locator("input").fill("Conversa entre colegas, sem violação.");
+  await reportCard.getByRole("button", { name: "Resolver" }).click();
+  await page.getByText("Denúncia resolvida.").waitFor();
   await carla.goto(BASE + "/perfil");
   await carla.getByText("CRM verificado na fonte oficial").waitFor();
   await bruno.goto(BASE + "/grupos");
