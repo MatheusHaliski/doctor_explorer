@@ -261,3 +261,25 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .cid-results { list-style: none; padding: 0; margin: var(--space-2) 0 0; display: grid; gap: 4px; }
 .cid-results .btn { width: 100%; justify-content: flex-start; text-align: left; height: auto; min-height: var(--tap-min); white-space: normal; }
 .field-error { color: var(--danger); font-size: 0.875rem; margin: 4px 0; }
+
+/* RF09 · receita e pedido de exame: etapas, itens com posologia, resumo de revisão, código de validação */
+.steps { list-style: none; padding: 0; margin: var(--space-3) 0 var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-2); counter-reset: none; }
+.steps li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-2); font-size: var(--text-sm); font-weight: 600; }
+.steps li span { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--line); color: var(--text); font-size: var(--text-xs); }
+.steps li.done span { background: var(--success-soft); color: var(--success); }
+.steps li[aria-current="step"] { background: var(--brand-soft); color: var(--text); }
+.steps li[aria-current="step"] span { background: var(--brand); color: var(--surface); }
+.doc-items { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: grid; gap: var(--space-3); }
+.doc-item { box-shadow: none; border: 1px solid var(--line); }
+.doc-item-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 var(--space-3); }
+.doc-fieldset { border: 0; padding: 0; margin: var(--space-2) 0; }
+.doc-fieldset legend { font-weight: 600; font-size: var(--text-sm); margin-bottom: 4px; }
+.doc-flag { font-size: var(--text-xs); color: var(--warning); font-weight: 700; }
+.doc-summary { padding-left: 1.25rem; display: grid; gap: var(--space-2); }
+.doc-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.5rem; letter-spacing: .08em; margin: 0 0 var(--space-2); }
+.doc-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px var(--space-3); margin: var(--space-2) 0; font-size: var(--text-sm); }
+.doc-facts dt { color: var(--text-2); font-weight: 600; }
+.doc-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.auth.public .card { max-width: 560px; }
+@media (max-width: 480px) { .doc-facts { grid-template-columns: 1fr; } .doc-facts dd { margin-bottom: 6px; } }

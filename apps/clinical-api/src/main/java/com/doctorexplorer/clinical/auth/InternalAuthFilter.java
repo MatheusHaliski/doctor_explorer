@@ -13,7 +13,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Toda rota (menos a saúde) exige o token interno. Escrita exige token emitido para escrita (a core-api só marca
- * {@code write} depois de validar o CSRF da sessão). Prontuário e FHIR exigem selo VERIFIED; a terminologia, não.
+ * {@code write} depois de validar o CSRF da sessão). Prontuário, documentos e FHIR exigem selo VERIFIED; a
+ * terminologia, não. {@code /public/**} (validador e link do paciente) só aceita o token PUBLIC, que não abre outra rota.
  */
 @Component
 public class InternalAuthFilter extends OncePerRequestFilter {
@@ -45,7 +46,13 @@ public class InternalAuthFilter extends OncePerRequestFilter {
             problem(response, 403, "token-somente-leitura", "Token só de leitura", "Esta operação de escrita precisa de um token emitido para escrita.");
             return;
         }
-        if (!request.getRequestURI().startsWith("/terminology") && !c.verified()) {
+        // rotas públicas (validador e link do paciente) só com o token PUBLIC; o token PUBLIC não serve para mais nada
+        boolean publicRoute = request.getRequestURI().startsWith("/public/");
+        if (publicRoute != c.isPublic()) {
+            problem(response, 403, "rota-nao-permitida", "Rota não permitida", "Este token não dá acesso a esta rota.");
+            return;
+        }
+        if (!publicRoute && !request.getRequestURI().startsWith("/terminology") && !c.verified()) {
             problem(response, 403, "selo-necessario", "Selo CRM necessário", "O prontuário fica disponível depois que seu CRM for verificado.");
             return;
         }

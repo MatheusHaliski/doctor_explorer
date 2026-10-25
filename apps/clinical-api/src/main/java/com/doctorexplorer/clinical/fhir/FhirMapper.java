@@ -1,5 +1,11 @@
 package com.doctorexplorer.clinical.fhir;
 
+import com.doctorexplorer.clinical.catalog.ExamCatalog;
+import com.doctorexplorer.clinical.catalog.MedicationCatalog;
+import com.doctorexplorer.clinical.documents.ClinicalDocument;
+import com.doctorexplorer.clinical.documents.DocumentService;
+import com.doctorexplorer.clinical.documents.DocumentViews;
+import com.doctorexplorer.clinical.documents.Posology;
 import com.doctorexplorer.clinical.ehr.EhrService.Loaded;
 import com.doctorexplorer.clinical.ehr.EhrViews.PatientView;
 import com.doctorexplorer.clinical.ehr.Encounter;
@@ -37,6 +43,7 @@ public class FhirMapper {
     static final String CPF = "https://saude.gov.br/fhir/sid/cpf";
     static final String CRM = "https://doctorexplorer.app/fhir/sid/crm";
     static final String RECORD = "https://doctorexplorer.app/fhir/sid/prontuario-local";
+    static final String GGREM = "https://www.gov.br/anvisa/cmed/ggrem";
 
     public Patient patient(PatientView p) {
         Patient r = new Patient();
@@ -151,6 +158,98 @@ public class FhirMapper {
         sig.setSigFormat("application/octet-stream");
         sig.setData(Base64.getDecoder().decode(s.getSignature()));
         return p;
+    }
+
+    /** RF09 · cada medicamento da receita vira um MedicationRequest; os da mesma receita dividem o groupIdentifier. */
+    public List<org.hl7.fhir.r4.model.MedicationRequest> medicationRequests(DocumentService.Loaded l, MedicationCatalog catalog) {
+        ClinicalDocument d = l.document();
+        List<org.hl7.fhir.r4.model.MedicationRequest> out = new ArrayList<>();
+        int n = 0;
+        for (DocumentViews.MedicationInput m : l.content().medications()) {
+            n++;
+            var med = catalog.byGgrem(m.ggrem());
+            org.hl7.fhir.r4.model.MedicationRequest r = new org.hl7.fhir.r4.model.MedicationRequest();
+            r.setId(d.getId() + "-m" + n);
+            String posology = Posology.text(m);
+            r.setText(narrative(med.map(MedicationCatalog.Medication::label).orElse(m.ggrem()) + " — " + posology));
+            r.setStatus(switch (d.getState()) {
+                case ASSINADA, ENVIADA -> org.hl7.fhir.r4.model.MedicationRequest.MedicationRequestStatus.ACTIVE;
+                case CANCELADA -> org.hl7.fhir.r4.model.MedicationRequest.MedicationRequestStatus.CANCELLED;
+                default -> org.hl7.fhir.r4.model.MedicationRequest.MedicationRequestStatus.DRAFT;
+            });
+            r.setIntent(org.hl7.fhir.r4.model.MedicationRequest.MedicationRequestIntent.ORDER);
+            r.getGroupIdentifier().setSystem("urn:ietf:rfc:3986").setValue("urn:uuid:" + d.getId());
+            r.setMedication(new CodeableConcept(new Coding(GGREM, m.ggrem(), med.map(MedicationCatalog.Medication::label).orElse(null)))
+                    .setText(med.map(x -> x.substance() + " · " + x.presentation()).orElse(m.ggrem())));
+            r.setSubject(new Reference("Patient/" + d.getPatientId()));
+            r.setEncounter(new Reference("Encounter/" + d.getEncounterId()));
+            r.setAuthoredOn(Date.from(d.getSignedAt() != null ? d.getSignedAt() : d.getCreatedAt()));
+            r.setRequester(new Reference("Practitioner/" + d.getAuthorId()));
+            r.addDosageInstruction(dosage(m, posology));
+            if (d.getValidUntil() != null) {
+                r.getDispenseRequest().setValidityPeriod(new Period().setEnd(Date.from(d.getValidUntil().atStartOfDay(java.time.ZoneId.of("America/Sao_Paulo")).toInstant())));
+            }
+            out.add(r);
+        }
+        return out;
+    }
+
+    /** RF09 · cada exame do pedido vira um ServiceRequest com LOINC e o código TUSS equivalente. */
+    public List<org.hl7.fhir.r4.model.ServiceRequest> serviceRequests(DocumentService.Loaded l, ExamCatalog catalog) {
+        ClinicalDocument d = l.document();
+        List<org.hl7.fhir.r4.model.ServiceRequest> out = new ArrayList<>();
+        int n = 0;
+        for (DocumentViews.ExamInput e : l.content().exams()) {
+            n++;
+            var ex = catalog.byLoinc(e.loinc()).orElseThrow();
+            org.hl7.fhir.r4.model.ServiceRequest r = new org.hl7.fhir.r4.model.ServiceRequest();
+            r.setId(d.getId() + "-e" + n);
+            r.setText(narrative(ex.name() + " (TUSS " + ex.tuss() + ")"));
+            r.setStatus(switch (d.getState()) {
+                case ASSINADA, ENVIADA -> org.hl7.fhir.r4.model.ServiceRequest.ServiceRequestStatus.ACTIVE;
+                case CANCELADA -> org.hl7.fhir.r4.model.ServiceRequest.ServiceRequestStatus.REVOKED;
+                default -> org.hl7.fhir.r4.model.ServiceRequest.ServiceRequestStatus.DRAFT;
+            });
+            r.setIntent(org.hl7.fhir.r4.model.ServiceRequest.ServiceRequestIntent.ORDER);
+            r.getRequisition().setSystem("urn:ietf:rfc:3986").setValue("urn:uuid:" + d.getId());
+            CodeableConcept code = new CodeableConcept().setText(ex.name());
+            code.addCoding(new Coding(ExamCatalog.LOINC, ex.loinc(), null));
+            code.addCoding(new Coding(ExamCatalog.TUSS, ex.tuss(), ex.tussTerm()));
+            r.setCode(code);
+            r.setSubject(new Reference("Patient/" + d.getPatientId()));
+            r.setEncounter(new Reference("Encounter/" + d.getEncounterId()));
+            r.setAuthoredOn(Date.from(d.getSignedAt() != null ? d.getSignedAt() : d.getCreatedAt()));
+            r.setRequester(new Reference("Practitioner/" + d.getAuthorId()));
+            if (!l.content().indication().isBlank()) r.addReasonCode().setText(l.content().indication());
+            out.add(r);
+        }
+        return out;
+    }
+
+    static org.hl7.fhir.r4.model.Dosage dosage(DocumentViews.MedicationInput m, String text) {
+        org.hl7.fhir.r4.model.Dosage d = new org.hl7.fhir.r4.model.Dosage().setText(text);
+        org.hl7.fhir.r4.model.Timing.TimingRepeatComponent rep = d.getTiming().getRepeat();
+        if (m.intervalHours() != null) {
+            rep.setFrequency(1).setPeriod(m.intervalHours()).setPeriodUnit(org.hl7.fhir.r4.model.Timing.UnitsOfTime.H);
+        } else if (m.timesPerDay() != null) {
+            rep.setFrequency(m.timesPerDay()).setPeriod(1).setPeriodUnit(org.hl7.fhir.r4.model.Timing.UnitsOfTime.D);
+        }
+        if (m.durationDays() != null) {
+            rep.setBounds(new org.hl7.fhir.r4.model.Duration().setValue(m.durationDays()).setUnit("d").setSystem("http://unitsofmeasure.org").setCode("d"));
+        }
+        d.setRoute(new CodeableConcept().setText(Posology.ROUTES.getOrDefault(m.route(), m.route())));
+        java.math.BigDecimal value = doseValue(m.dose());
+        if (value != null) d.addDoseAndRate().setDose(new org.hl7.fhir.r4.model.Quantity().setValue(value).setUnit(m.doseUnit()));
+        return d;
+    }
+
+    static java.math.BigDecimal doseValue(String dose) {
+        if (dose.matches("\\d/\\d")) return java.math.BigDecimal.valueOf(Integer.parseInt(dose.substring(0, 1))).divide(java.math.BigDecimal.valueOf(Integer.parseInt(dose.substring(2))), 3, java.math.RoundingMode.HALF_UP);
+        try {
+            return new java.math.BigDecimal(dose.replace(',', '.'));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     static String conditionId(SoapComposition s, String code) {

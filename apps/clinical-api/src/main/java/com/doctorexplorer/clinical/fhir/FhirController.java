@@ -2,6 +2,9 @@ package com.doctorexplorer.clinical.fhir;
 
 import ca.uhn.fhir.context.FhirContext;
 import com.doctorexplorer.clinical.auth.Caller;
+import com.doctorexplorer.clinical.catalog.ExamCatalog;
+import com.doctorexplorer.clinical.catalog.MedicationCatalog;
+import com.doctorexplorer.clinical.documents.DocumentService;
 import com.doctorexplorer.clinical.ehr.EhrService;
 import com.doctorexplorer.clinical.ehr.EhrService.Loaded;
 import com.doctorexplorer.clinical.ehr.SoapComposition;
@@ -40,9 +43,15 @@ public class FhirController {
     private final Cid10 cid10;
     private final FhirContext ctx = FhirContext.forR4Cached();
     private final String base;
+    private final DocumentService documents;
+    private final MedicationCatalog medications;
+    private final ExamCatalog exams;
 
-    public FhirController(EhrService ehr, FhirMapper mapper, Cid10 cid10,
+    public FhirController(EhrService ehr, FhirMapper mapper, Cid10 cid10, DocumentService documents, MedicationCatalog medications, ExamCatalog exams,
             @Value("${doctor-explorer.fhir.base-url:https://doctorexplorer.app/api/v1/clinical/fhir/r4}") String base) {
+        this.documents = documents;
+        this.medications = medications;
+        this.exams = exams;
         this.ehr = ehr;
         this.mapper = mapper;
         this.cid10 = cid10;
@@ -56,7 +65,7 @@ public class FhirController {
                 .setFhirVersion(Enumerations.FHIRVersion._4_0_1).addFormat("json");
         cs.getImplementation().setDescription("Doctor Explorer · clinical-api (somente leitura)");
         CapabilityStatement.CapabilityStatementRestComponent rest = cs.addRest().setMode(CapabilityStatement.RestfulCapabilityMode.SERVER);
-        for (String t : List.of("Patient", "Practitioner", "Encounter", "Composition", "Condition", "Provenance")) {
+        for (String t : List.of("Patient", "Practitioner", "Encounter", "Composition", "Condition", "Provenance", "MedicationRequest", "ServiceRequest")) {
             rest.addResource().setType(t).addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.READ);
         }
         return fhir(cs);
@@ -124,6 +133,47 @@ public class FhirController {
         ehr.auditFhir(c, "Provenance", l.composition().getId(), l.composition().getPatientId());
         List<Resource> out = l.composition().getSignedAt() == null ? List.of() : List.of(mapper.provenance(l));
         return fhir(searchset(out));
+    }
+
+    @GetMapping("/MedicationRequest")
+    ResponseEntity<String> medicationRequestsOf(Caller c, @RequestParam UUID patient) {
+        List<Resource> out = documents.loadByPatient(c, patient).stream().flatMap(l -> mapper.medicationRequests(l, medications).stream()).map(Resource.class::cast).toList();
+        ehr.auditFhir(c, "MedicationRequest", null, patient);
+        return fhir(searchset(out));
+    }
+
+    @GetMapping("/MedicationRequest/{id}")
+    ResponseEntity<String> medicationRequest(Caller c, @PathVariable String id) {
+        DocumentService.Loaded l = documents.load(c, documentId(id));
+        var r = mapper.medicationRequests(l, medications).stream().filter(x -> x.getIdPart().equals(id)).findFirst()
+                .orElseThrow(() -> ApiProblemException.notFound("A prescrição"));
+        ehr.auditFhir(c, "MedicationRequest", l.document().getId(), l.document().getPatientId());
+        return fhir(r);
+    }
+
+    @GetMapping("/ServiceRequest")
+    ResponseEntity<String> serviceRequestsOf(Caller c, @RequestParam UUID patient) {
+        List<Resource> out = documents.loadByPatient(c, patient).stream().flatMap(l -> mapper.serviceRequests(l, exams).stream()).map(Resource.class::cast).toList();
+        ehr.auditFhir(c, "ServiceRequest", null, patient);
+        return fhir(searchset(out));
+    }
+
+    @GetMapping("/ServiceRequest/{id}")
+    ResponseEntity<String> serviceRequest(Caller c, @PathVariable String id) {
+        DocumentService.Loaded l = documents.load(c, documentId(id));
+        var r = mapper.serviceRequests(l, exams).stream().filter(x -> x.getIdPart().equals(id)).findFirst()
+                .orElseThrow(() -> ApiProblemException.notFound("O pedido de exame"));
+        ehr.auditFhir(c, "ServiceRequest", l.document().getId(), l.document().getPatientId());
+        return fhir(r);
+    }
+
+    private static UUID documentId(String id) {
+        if (id.length() < 38) throw ApiProblemException.notFound("O recurso");
+        try {
+            return UUID.fromString(id.substring(0, 36));
+        } catch (IllegalArgumentException e) {
+            throw ApiProblemException.notFound("O recurso");
+        }
     }
 
     private Bundle searchset(List<Resource> resources) {

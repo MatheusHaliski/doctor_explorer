@@ -40,6 +40,11 @@ doctor-explorer:
     # SPKI Base64 da chave pública do token interno; vazio = busca em /api/v1/internal/public-key
     public-key: ${DE_CORE_INTERNAL_PUBLIC_KEY:}
     timeout: 10s
+  # RF09 · provedor ICP-Brasil (ADR-007). Sem contrato configurado, "unavailable": a assinatura falha fechada.
+  signature:
+    provider: ${DE_SIGNATURE_PROVIDER:unavailable}
+  # endereço do web impresso no QR code e no link do paciente
+  public-base-url: ${DE_PUBLIC_BASE_URL:http://localhost:3000}
   # base pública da fachada (fullUrl dos Bundles): o navegador chega por /api/v1/clinical/fhir/r4 na core-api
   fhir:
     base-url: ${DE_FHIR_BASE_URL:http://localhost:3000/api/v1/clinical/fhir/r4}

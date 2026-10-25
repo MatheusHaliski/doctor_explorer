@@ -83,7 +83,7 @@ public class EhrService {
     /** Cofre aberto para a requisição: entidade + chave de dados desembrulhada (só em memória). */
     public record Open(ClinicalVault vault, byte[] dek, Practitioner me) {}
 
-    Open open(Caller c) {
+    public Open open(Caller c) {
         practitioners.upsert(c.userId(), c.name() == null || c.name().isBlank() ? "Médico" : c.name(), c.crm(), c.uf());
         ClinicalVault v = vaults.findByOwnerTypeAndOwnerId(ClinicalVault.OwnerType.PRACTITIONER, c.userId()).orElseGet(() -> {
             UUID id = ClinicalVault.newId();
@@ -362,7 +362,29 @@ public class EhrService {
         audit.record(c, "clinical.fhir_read", resourceType, resourceId, patientId, Map.of());
     }
 
-    // ---------- apoio ----------
+    // ---------- apoio (também usado pelos documentos do RF09) ----------
+
+    /** Paciente do cofre aberto, decifrado; 404 se for de outro cofre. */
+    public PatientView patientIn(Open o, UUID patientId) {
+        return patientView(o, ownedPatient(o, patientId));
+    }
+
+    /** Encontro novo para o documento, ou o informado se for do mesmo paciente e cofre. */
+    public Encounter encounterFor(Open o, UUID patientId, UUID encounterId, Encounter.Context context) {
+        if (encounterId != null) {
+            return encounters.findById(encounterId).filter(e -> e.getVaultId().equals(o.vault().getId()) && e.getPatientId().equals(patientId))
+                    .orElseThrow(() -> ApiProblemException.notFound("O encontro"));
+        }
+        return encounters.save(new Encounter(UuidV7.generate(), o.vault().getId(), patientId, o.me().getId(), context, Instant.now()));
+    }
+
+    public void touchPatient(UUID patientId) {
+        patients.findById(patientId).ifPresent(p -> {
+            p.touched();
+            patients.save(p);
+        });
+    }
+
 
     private Loaded loaded(Open o, SoapComposition s) {
         Encounter e = encounters.findById(s.getEncounterId()).orElseThrow();

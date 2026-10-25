@@ -35,6 +35,11 @@ public final class TestTokens {
         }
     }
 
+    /** Token que a core-api emite para as rotas sem login (validador, link do paciente). */
+    public static String publicToken() {
+        return token(new Doctor(new UUID(0, 0), "", null, null), false, false, "PUBLIC");
+    }
+
     public static String token(Doctor d, boolean write, boolean sudo, String seal) {
         return token(d, write, sudo, seal, "clinical-api", System.currentTimeMillis() + 60_000);
     }

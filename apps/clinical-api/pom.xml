@@ -22,6 +22,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jib.version>3.4.6</jib.version>
     <hapi.version>8.12.1</hapi.version>
+    <pdfbox.version>3.0.8</pdfbox.version>
   </properties>
 
   <dependencyManagement>
@@ -73,6 +74,29 @@
       <version>1.85.2</version>
     </dependency>
     <dependency>
+      <!-- RF09 · CMS/CAdES da assinatura PAdES, carimbo do tempo e certificados da AC simulada -->
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
+      <version>1.85</version>
+    </dependency>
+    <dependency>
+      <!-- RF09 · PDF/A-1b e assinatura incremental (PAdES) -->
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>xmpbox</artifactId>
+      <version>${pdfbox.version}</version>
+    </dependency>
+    <dependency>
+      <!-- RF09 · QR code do validador público -->
+      <groupId>com.google.zxing</groupId>
+      <artifactId>core</artifactId>
+      <version>3.5.3</version>
+    </dependency>
+    <dependency>
       <!-- Fachada FHIR R4 (ADR-004): modelo, serialização e validação contra os perfis base -->
       <groupId>ca.uhn.hapi.fhir</groupId>
       <artifactId>hapi-fhir-structures-r4</artifactId>
@@ -117,6 +141,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- RF09 · validação PDF/A-1b independente do gerador -->
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>preflight</artifactId>
+      <version>${pdfbox.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

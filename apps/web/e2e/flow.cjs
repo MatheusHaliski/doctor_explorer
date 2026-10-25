@@ -1,7 +1,7 @@
 /*
  * Teste ponta a ponta no navegador: web real (Next) + core-api (perfil dev) + PostgreSQL + Valkey.
  * Login de verdade, sem mock: cadastro → código do mailer dev (lido do log da API) → selo CRM/RQE na fonte
- * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → feed por eixos → LGPD → sudo →
+ * simulada → grupo → caso bloqueado por identificador → imagem anonimizada e aprovada (RF05) → caso publicado → nota SOAP assinada e corrigida (RF08) → receita PAdES, validador público e link de uso único (RF09) → feed por eixos → LGPD → sudo →
  * tema escuro → mobile → logout → login.
  *
  * Uso: API_LOG=<log da core-api> BASE=http://localhost:3000 [SHOTS=dir] [PLAYWRIGHT_ROOT=<node_modules>] node e2e/flow.cjs
@@ -209,6 +209,80 @@ const ok = (name, cond, extra = "") => { steps.push(`${cond ? "✓" : "✗"} ${n
   ok("correção abre a versão 2 com o motivo", (await page.getByText("Motivo da correção: Dose ajustada").count()) === 1);
   ok("versão assinada continua listada", (await page.getByRole("link", { name: "Versão 1" }).count()) === 1);
   await shot("07c-soap-versao-2");
+
+  // RF09: receita a partir do prontuário → catálogo CMED (controle especial bloqueado) → revisão → assinatura PAdES →
+  // validador público sem login → link de uso único do paciente → cancelamento com motivo
+  await page.locator('a[href^="/prontuario/pacientes/"]').first().click();
+  await page.getByRole("button", { name: "Nova receita" }).click();
+  await page.waitForURL(/\/prontuario\/documentos\/[0-9a-f-]{36}$/);
+  await page.getByRole("heading", { name: /^Receita · / }).waitFor();
+  await page.fill("#med-q", "alprazolam");
+  await page.getByText(/Medicamentos de controle especial/).waitFor();
+  ok("controle especial aparece bloqueado", await page.locator(".cid-results button").first().isDisabled());
+  await page.fill("#med-q", "amoxicilina 500 mg cap");
+  await page.locator(".cid-results button:not([disabled])").first().click();
+  await page.locator("#med-0-dose").waitFor();
+  ok("posologia de partida pela apresentação", (await page.locator("#med-0-unit").inputValue()) === "cápsula" && (await page.locator("#med-0-days").inputValue()) === "7");
+  await page.fill("#med-0-qty", "1 caixa");
+  await shot("07d-receita-itens");
+  await page.getByRole("button", { name: "Salvar e revisar" }).click();
+  await page.getByRole("heading", { name: "Confira antes de assinar" }).waitFor();
+  ok("revisão mostra a posologia por extenso", (await page.locator(".doc-summary").innerText()).includes("de 8 em 8 horas"));
+  ok("antimicrobiano avisa 2 vias e 10 dias", (await page.getByText(/2 vias/).count()) === 1);
+  await page.getByLabel("Conferi paciente, itens e posologia").check();
+  await page.getByRole("button", { name: "Assinar com certificado ICP-Brasil" }).click();
+  const signedOrSudo = await Promise.race([
+    page.getByRole("heading", { name: "Validação" }).waitFor({ timeout: 30_000 }).then(() => "signed"),
+    page.getByRole("heading", { name: "Confirme sua identidade para assinar" }).waitFor({ timeout: 30_000 }).then(() => "sudo"),
+  ]);
+  if (signedOrSudo === "sudo") {
+    await page.fill("#sudo-password", password);
+    await page.getByRole("button", { name: "Confirmar e assinar" }).click();
+    await page.getByRole("heading", { name: "Validação" }).waitFor({ timeout: 30_000 });
+  }
+  const rxCode = (await page.locator(".doc-code").innerText()).trim();
+  ok("receita assinada com código de validação", /^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/.test(rxCode), rxCode);
+  ok("assinatura PAdES-B-T", (await page.getByText(/PAdES-B-T/).count()) > 0);
+  const [pdfDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Baixar PDF assinado" }).click()]);
+  const pdf = fs.readFileSync(await pdfDownload.path());
+  ok("PDF assinado baixado", pdf.subarray(0, 5).toString() === "%PDF-" && pdf.includes("/ByteRange") && pdf.includes("pdfaid:part"));
+  await page.getByText("Só gerar o link", { exact: true }).click();
+  await page.getByRole("button", { name: "Gerar link" }).click();
+  const patientLink = await page.locator("#patient-link").inputValue();
+  ok("link de uso único gerado", /\/receita\/[A-Za-z0-9_-]{20,}$/.test(patientLink));
+  await shot("07e-receita-assinada");
+
+  const visitor = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR" });
+  const vpage = await visitor.newPage();
+  vpage.on("pageerror", (e) => errors.push(String(e)));
+  await vpage.goto(BASE + "/validar");
+  await vpage.fill("#code", rxCode.toLowerCase().replace(/-/g, " "));
+  await vpage.getByRole("button", { name: "Validar" }).click();
+  await vpage.getByText("Documento válido.").waitFor();
+  const shown = await vpage.locator(".doc-facts").innerText();
+  ok("validador sem login: válido, iniciais e CRM", shown.includes(rxCode) && /CRM \d+\/[A-Z]{2}/.test(shown) && !shown.includes("Helena"));
+  ok("validador avisa que a ICP-Brasil é simulada", (await vpage.getByText(/ICP-Brasil simulada/).count()) === 1);
+  if (SHOTS) await vpage.screenshot({ path: path.join(SHOTS, "07f-validador-publico.png"), fullPage: true });
+  await vpage.goto(BASE + new URL(patientLink).pathname);
+  const [patientPdf] = await Promise.all([vpage.waitForEvent("download"), vpage.getByRole("button", { name: "Baixar PDF" }).click()]);
+  ok("paciente baixa o mesmo PDF", fs.readFileSync(await patientPdf.path()).equals(pdf));
+  await vpage.reload();
+  await vpage.getByRole("button", { name: "Baixar PDF" }).click();
+  await vpage.getByText(/já foi usado/).waitFor();
+  ok("link do paciente é de uso único", true);
+  if (SHOTS) await vpage.screenshot({ path: path.join(SHOTS, "07g-link-usado.png"), fullPage: true });
+
+  await page.reload();
+  await page.getByRole("heading", { name: "Envios" }).waitFor();
+  await page.locator("summary", { hasText: "Cancelar documento" }).click();
+  await page.fill("#cancel-reason", "Dose revista; nova receita emitida");
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Cancelar documento" }).click();
+  await page.getByText(/^Cancelado em/).waitFor();
+  await vpage.goto(BASE + "/validar/" + rxCode);
+  await vpage.getByText("Documento cancelado pelo médico.").waitFor();
+  ok("cancelado aparece no validador, sem o motivo", (await vpage.getByText("Dose revista").count()) === 0);
+  await visitor.close();
 
   // feed segmentado
   await page.goto(BASE + "/feed");

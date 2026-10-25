@@ -45,6 +45,8 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/institutions", "/api/v1/institutions/*", "/api/v1/profiles/*").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/audit/public-key", "/api/v1/internal/public-key").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/internal/audit").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/public/documents/*").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/public/deliveries/*").permitAll()
                 // papéis sensíveis: papel + 2FA ativo. A auditoria também é lida pelo Encarregado (RF13, recorte de privacidade).
                 .requestMatchers("/api/v1/admin/audit/**", "/api/v1/admin/audit", "/api/v1/admin/dashboard/**")
                         .access(new MfaRequiredAuthorizationManager("MODERATOR", "ADMIN", "DPO"))

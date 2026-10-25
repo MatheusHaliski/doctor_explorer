@@ -6,6 +6,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatDate, formatDateTime } from "@/lib/domain";
 import { CONTEXTS, NOTE_STATES, ageFrom, groupByLineage, type Composition, type CompositionSummary, type PatientView } from "@/lib/ehr";
+import { DOC_STATES, KINDS, type DocumentSummary, type DocumentView, type Kind } from "@/lib/documents";
 import { useAsyncEffect } from "@/lib/use-async";
 import { Button, Field, Loading, ProblemAlert } from "@/components/ui";
 
@@ -13,11 +14,34 @@ import { Button, Field, Loading, ProblemAlert } from "@/components/ui";
 export function PatientRecord({ id }: { id: string }) {
   const router = useRouter();
   const [data, setData] = useState<{ patient: PatientView; compositions: CompositionSummary[] } | null>(null);
+  const [docs, setDocs] = useState<DocumentSummary[]>([]);
   const [context, setContext] = useState("CONSULTA");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
-  useAsyncEffect(async () => setData(await api.get(`/api/v1/clinical/patients/${id}`)), setError, [id]);
+  useAsyncEffect(
+    async () => {
+      const [p, d] = await Promise.all([
+        api.get<{ patient: PatientView; compositions: CompositionSummary[] }>(`/api/v1/clinical/patients/${id}`),
+        api.get<{ items: DocumentSummary[] }>("/api/v1/clinical/documents", { query: { patientId: id } }),
+      ]);
+      setData(p);
+      setDocs(d.items);
+    },
+    setError,
+    [id],
+  );
+
+  async function newDocument(kind: Kind) {
+    setBusy(true);
+    try {
+      const d = await api.post<DocumentView>("/api/v1/clinical/documents", { patientId: id, kind });
+      router.push(`/prontuario/documentos/${d.id}`);
+    } catch (err) {
+      setError(err);
+      setBusy(false);
+    }
+  }
 
   async function newNote() {
     setBusy(true);
@@ -58,6 +82,12 @@ export function PatientRecord({ id }: { id: string }) {
         <Button type="button" variant="primary" loading={busy} onClick={newNote}>
           Nova nota SOAP
         </Button>
+        <Button type="button" disabled={busy} onClick={() => newDocument("RECEITA")}>
+          Nova receita
+        </Button>
+        <Button type="button" disabled={busy} onClick={() => newDocument("EXAME")}>
+          Novo pedido de exame
+        </Button>
       </div>
       <ProblemAlert error={error} />
       <h2>Notas</h2>
@@ -80,6 +110,24 @@ export function PatientRecord({ id }: { id: string }) {
               </li>
             );
           })}
+        </ul>
+      )}
+      <h2>Receitas e pedidos de exame</h2>
+      {docs.length === 0 ? (
+        <div className="card empty">Nenhum documento ainda.</div>
+      ) : (
+        <ul className="feed" aria-label="Documentos do paciente">
+          {docs.map((d) => (
+            <li key={d.id} className="card">
+              <Link href={`/prontuario/documentos/${d.id}`}>
+                <strong>{KINDS[d.kind]}</strong> · {formatDateTime(d.signedAt ?? d.createdAt)}
+              </Link>
+              <div className="text-sm text-text-2">
+                {DOC_STATES[d.state]} · {d.items} {d.items === 1 ? "item" : "itens"}
+                {d.validUntil ? ` · válida até ${formatDate(d.validUntil)}` : ""}
+              </div>
+            </li>
+          ))}
         </ul>
       )}
     </div>

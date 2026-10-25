@@ -109,11 +109,21 @@ async function request<T>(method: string, path: string, body?: unknown, opts?: R
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/** Arquivo binário (PDF): mesmo CSRF e os mesmos erros em Problem Details do JSON. */
+async function file(method: string, path: string): Promise<Blob> {
+  const headers: Record<string, string> = { Accept: "application/pdf, application/problem+json" };
+  if (WRITE.has(method)) headers["X-XSRF-TOKEN"] = await ensureCsrf();
+  const res = await fetch(path, { method, headers, credentials: "same-origin", cache: "no-store" });
+  if (!res.ok) throw new ApiError(await toProblem(res));
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>("GET", path, undefined, opts),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body ?? {}),
   delete: <T>(path: string) => request<T>("DELETE", path),
+  file: (method: "GET" | "POST", path: string) => file(method, path),
 };
 
 /** Texto único para mostrar ao usuário a partir de qualquer erro. */

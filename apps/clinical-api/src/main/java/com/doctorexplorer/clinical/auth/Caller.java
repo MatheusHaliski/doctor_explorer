@@ -10,6 +10,11 @@ public record Caller(UUID userId, String name, String crm, String uf, String sea
         return "VERIFIED".equals(seal);
     }
 
+    /** Token emitido pela core-api para as rotas sem login (sem conta: sub nulo, selo PUBLIC). */
+    public boolean isPublic() {
+        return "PUBLIC".equals(seal);
+    }
+
     public boolean sudoActive() {
         return sudoUntil > Instant.now().toEpochMilli();
     }

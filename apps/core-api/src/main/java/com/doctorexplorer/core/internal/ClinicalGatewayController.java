@@ -8,10 +8,6 @@ import com.doctorexplorer.core.web.ApiProblemException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
@@ -29,27 +25,24 @@ public class ClinicalGatewayController {
 
     static final String PREFIX = "/api/v1/clinical";
     private static final Set<String> SAFE = Set.of("GET", "HEAD");
-    private static final Set<String> FORWARDED_RESPONSE = Set.of("content-type", "etag", "last-modified", "location");
-    /** Só os recursos da clinical-api; segmentos simples (sem "..", "//", "%" nem "@"), então o destino é sempre a base. */
     /** Consulta já codificada pelo navegador: só caracteres de URL, sem fragmento nem espaço. */
     static final Pattern SAFE_QUERY = Pattern.compile("^[A-Za-z0-9._~%&=+:/,-]*$");
-    static final Pattern ALLOWED_PATH = Pattern.compile("^/(patients|compositions|terminology|fhir/r4)(/[A-Za-z0-9._-]+)*$");
+    /** Só os recursos da clinical-api; segmentos simples (sem "..", "//", "%" nem "@"), então o destino é sempre a base. */
+    static final Pattern ALLOWED_PATH = Pattern.compile("^/(patients|compositions|terminology|documents|document-templates|catalog|fhir/r4)(/[A-Za-z0-9._-]+)*$");
 
     private final AccessService access;
     private final SessionSupport sessions;
     private final CredentialingService credentialing;
     private final InternalTokens tokens;
-    private final ClinicalProperties props;
-    private final HttpClient http;
+    private final ClinicalClient clinical;
 
     public ClinicalGatewayController(AccessService access, SessionSupport sessions, CredentialingService credentialing, InternalTokens tokens,
-            ClinicalProperties props) {
+            ClinicalClient clinical) {
         this.access = access;
         this.sessions = sessions;
         this.credentialing = credentialing;
         this.tokens = tokens;
-        this.props = props;
-        this.http = HttpClient.newBuilder().connectTimeout(props.timeout()).followRedirects(HttpClient.Redirect.NEVER).build();
+        this.clinical = clinical;
     }
 
     @RequestMapping(PREFIX + "/**")
@@ -71,34 +64,7 @@ public class ClinicalGatewayController {
         String token = tokens.issue(p.userId(), p.displayName(), status.crmNumber(), status.crmUf(), String.valueOf(status.seal()),
                 sudo instanceof Long l ? l : 0L, Boolean.TRUE.equals(mfa), !SAFE.contains(method), InternalTokens.CLINICAL);
 
-        // esquema, host e porta vêm só da configuração; o caminho já passou pela lista de recursos
-        URI base = URI.create(props.baseUrl());
-        URI target = URI.create(base.getScheme() + "://" + base.getRawAuthority() + path + (query == null ? "" : "?" + query));
-        byte[] body = request.getInputStream().readAllBytes();
-        HttpRequest.Builder b = HttpRequest.newBuilder(target).timeout(props.timeout())
-                .header("Authorization", "DE-Internal " + token)
-                .header("Accept", request.getHeader("Accept") == null ? "application/json" : request.getHeader("Accept"))
-                .method(method, body.length == 0 ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofByteArray(body));
-        if (request.getContentType() != null && body.length > 0) b.header("Content-Type", request.getContentType());
-        HttpResponse<byte[]> res;
-        try {
-            res = http.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
-        } catch (IOException e) {
-            throw unavailable();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw unavailable();
-        }
-        ResponseEntity.BodyBuilder out = ResponseEntity.status(res.statusCode());
-        res.headers().map().forEach((k, v) -> {
-            if (FORWARDED_RESPONSE.contains(k.toLowerCase())) v.forEach(value -> out.header(k, value));
-        });
-        out.header("Cache-Control", "no-store");
-        return out.body(res.body());
-    }
-
-    private static ApiProblemException unavailable() {
-        return new ApiProblemException(HttpStatus.SERVICE_UNAVAILABLE, "prontuario-indisponivel", "Prontuário indisponível",
-                "O serviço do prontuário não respondeu. Nada foi gravado; tente de novo em instantes.");
+        // o caminho já passou pela lista de recursos
+        return clinical.send(method, path, query, token, request.getHeader("Accept"), request.getContentType(), request.getInputStream().readAllBytes());
     }
 }

@@ -54,7 +54,9 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
-      - name: mvn verify (unitários + EhrIT e FhirValidationIT com PostgreSQL real)
+      - name: "pdfsig (Poppler): conferência independente da assinatura PAdES"
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+      - name: mvn verify (unitários + EhrIT, DocumentIT e FhirValidationIT com PostgreSQL real)
         working-directory: apps/clinical-api
         run: mvn -B -ntp verify
       - name: SBOM (CycloneDX)

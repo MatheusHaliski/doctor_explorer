@@ -9,7 +9,8 @@ prontuário, receita e pedido de exame com ICP-Brasil, diretório hospitalar com
 
 Estado atual: **MVP em construção**. `apps/core-api` cobre RF01–RF05 e RF10–RF13 (identidade, selo
 CRM/RQE, perfil, grupos e feed, anonimização de mídia, LGPD, diretório hospitalar, RBAC, auditoria e painéis);
-`apps/clinical-api` cobre o RF08 (prontuário SOAP no cofre clínico e fachada FHIR R4); `apps/web` é a interface
+`apps/clinical-api` cobre o RF08 (prontuário SOAP no cofre clínico e fachada FHIR R4) e o RF09 (receita e pedido de
+exame em PDF/A com assinatura PAdES, QR e validador público); `apps/web` é a interface
 real em Next.js sobre as duas. Ordem de entrega em
 [docs/ESPECIFICACAO_TECNICA.md §11](docs/ESPECIFICACAO_TECNICA.md#11-plano-de-entrega); estado por
 história em [docs/TRELLO_BACKLOG.md](docs/TRELLO_BACKLOG.md).
@@ -64,12 +65,17 @@ Banco, usuário e segredo próprios (ADR-001). O navegador nunca fala com ela: a
 ```bash
 docker compose up -d                                   # o Compose já cria o banco doctor_explorer_clinical e o usuário clinical
 cd apps/clinical-api
-mvn verify                                             # unitários + EhrIT e FhirValidationIT (Testcontainers PostgreSQL)
+mvn verify                                             # unitários + EhrIT, DocumentIT e FhirValidationIT (Testcontainers PostgreSQL)
 mvn spring-boot:run -Dspring-boot.run.profiles=dev     # http://localhost:8081/actuator/health
 ```
 
 Fora do perfil `dev`, `DE_CLINICAL_SECRET` (Base64, 32+ bytes) é obrigatório; a core-api acha a clinical-api em
 `DE_CLINICAL_BASE_URL` (padrão `http://localhost:8081`).
+
+Receitas (RF09): `DE_SIGNATURE_PROVIDER` escolhe quem assina. O padrão é `unavailable` (assinar falha com a causa
+e o rascunho fica intacto) até o provedor ICP-Brasil em nuvem ser contratado (ADR-007); os perfis `dev` e `it`
+usam `simulated`, uma AC e uma TSA "ICP-Brasil SIMULADA" derivadas do segredo, marcadas "sem validade jurídica"
+no PDF e no validador. `DE_PUBLIC_BASE_URL` (padrão `http://localhost:3000`) vai no QR e no link do paciente.
 
 ## Web (`apps/web`)
 

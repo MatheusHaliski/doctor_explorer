@@ -1,0 +1,44 @@
+# Exames do MVP: LOINC (loinc.org, uso conforme a licença LOINC) e o termo equivalente da TUSS 22 (ANS,
+# tabela de procedimentos e eventos em saúde, versão 201606 do mapeamento TUSS x SIGTAP). Lista curada; o
+# servidor de terminologia completo é ADR-005.
+# loinc	nome	tuss	termo_tuss
+58410-2	Hemograma completo com plaquetas	40304361	Hemograma com contagem de plaquetas ou frações (eritrograma, leucograma, plaquetas)
+2345-7	Glicose	40302040	Glicose - pesquisa e/ou dosagem
+4548-4	Hemoglobina glicada (A1c)	40302733	Hemoglobina glicada (Fração A1c) - pesquisa e/ou dosagem
+2160-0	Creatinina	40301630	Creatinina - pesquisa e/ou dosagem
+3091-6	Ureia	40302580	Uréia - pesquisa e/ou dosagem
+2951-2	Sódio	40302423	Sódio - pesquisa e/ou dosagem
+2823-3	Potássio	40302318	Potássio - pesquisa e/ou dosagem
+17861-6	Cálcio	40301400	Cálcio - pesquisa e/ou dosagem
+2601-3	Magnésio	40302237	Magnésio - pesquisa e/ou dosagem
+2093-3	Colesterol total	40301605	Colesterol total - pesquisa e/ou dosagem
+2085-9	Colesterol HDL	40301583	Colesterol (HDL) - pesquisa e/ou dosagem
+13457-7	Colesterol LDL (calculado)	40301591	Colesterol (LDL) - pesquisa e/ou dosagem
+2571-8	Triglicerídeos	40302547	Triglicerídeos - pesquisa e/ou dosagem
+3084-1	Ácido úrico	40301150	Ácido úrico - pesquisa e/ou dosagem
+3016-3	TSH	40316521	Tireoestimulante, hormônio (TSH) - pesquisa e/ou dosagem
+3024-7	T4 livre	40316491	T4 livre - pesquisa e/ou dosagem
+1742-6	ALT (TGP)	40302512	Transaminase pirúvica (amino transferase de alanina) - pesquisa e/ou dosagem
+1920-8	AST (TGO)	40302504	Transaminase oxalacética (amino transferase aspartato) - pesquisa e/ou dosagem
+2324-2	Gama-GT	40301990	Gama-glutamil transferase - pesquisa e/ou dosagem
+6768-6	Fosfatase alcalina	40301885	Fosfatase alcalina - pesquisa e/ou dosagem
+1975-2	Bilirrubinas	40301397	Bilirrubinas (direta, indireta e total) - pesquisa e/ou dosagem
+1988-5	Proteína C reativa (quantitativa)	40308391	Proteína C reativa, quantitativa - pesquisa e/ou dosagem
+4537-7	VHS	40304370	Hemossedimentação, (VHS) - pesquisa e/ou dosagem
+5902-2	Tempo de protrombina (TP/INR)	40304590	Tempo de protrombina - determinação
+14979-9	TTPa	40304639	Tempo de tromboplastina parcial ativada - determinação
+2276-4	Ferritina	40316270	Ferritina - pesquisa e/ou dosagem
+2132-9	Vitamina B12	40316572	Vitamina B12 - pesquisa e/ou dosagem
+1989-3	25-hidroxivitamina D	40302830	Vitamina "D" 25 HIDROXI, pesquisa e/ou dosagem (Vitamina D3)
+2857-1	PSA total	40316149	Antígeno específico prostático total (PSA) - pesquisa e/ou dosagem
+21198-7	Beta-hCG quantitativo	40305767	Hormônio gonodotrofico corionico quantitativo (HCG-Beta-HCG) - dosagem
+2524-7	Lactato	40301109	Ácido láctico (lactato) - pesquisa e/ou dosagem
+33762-6	NT-proBNP	40302776	Peptídeo natriurético BNP/PROBNP - pesquisa e/ou dosagem
+10839-9	Troponina I	40302571	Troponina - pesquisa e/ou dosagem
+24336-0	Gasometria arterial	40302016	Gasometria (pH, pCO2, SA, O2, excesso base) - pesquisa e/ou dosagem
+24356-8	Urina tipo 1 (EAS)	40311210	Rotina de urina (caracteres físicos, elementos anormais e sedimentoscopia)
+630-4	Urocultura	40310124	Cultura bacteriana (em diversos materiais biológicos)
+600-7	Hemocultura	40310248	Hemocultura (por amostra)
+36643-5	Radiografia de tórax (2 incidências)	40805026	RX - Tórax - 2 incidências
+24627-2	Tomografia de tórax	41001079	TC - Tórax
+11524-6	Eletrocardiograma	40101010	ECG convencional de até 12 derivações

@@ -144,6 +144,51 @@ class ClinicalGatewayIT {
         assertThat(RECEIVED).isEmpty();
     }
 
+    @Test
+    void documentRoutesAreForwarded() throws Exception {
+        ApiClient c = verifiedDoctor();
+        assertThat(c.get("/api/v1/clinical/catalog/medications?q=amoxi").getStatus()).isEqualTo(200);
+        assertThat(c.post("/api/v1/clinical/documents/abc/sign", "{\"reviewedHash\":\"x\"}").getStatus()).isEqualTo(201);
+        assertThat(c.get("/api/v1/clinical/public/documents/ABCD-EFGH-JKMN-PQRS").getStatus()).as("rota pública da clinical-api não passa pela porta logada")
+                .isEqualTo(404);
+        assertThat(RECEIVED).extracting(Received::path).containsExactly("/catalog/medications?q=amoxi", "/documents/abc/sign");
+    }
+
+    @Test
+    void publicRoutesNeedNoLoginAndCarryOnlyThePublicToken() throws Exception {
+        ApiClient visitor = new ApiClient(mvc);
+        assertThat(visitor.get("/api/v1/public/documents/ABCD-EFGH-JKMN-PQRS").getStatus()).isEqualTo(200);
+        assertThat(visitor.get("/api/v1/public/documents/..%2F..%2Fpatients").getStatus()).isIn(400, 404);
+        assertThat(visitor.get("/api/v1/public/documents/curto").getStatus()).isEqualTo(404);
+        var noCsrf = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/public/deliveries/abcdefghijklmnopqrstuvwxyz012345"))
+                .andReturn().getResponse();
+        assertThat(noCsrf.getStatus()).as("link do paciente é POST com CSRF").isEqualTo(403);
+        assertThat(visitor.post("/api/v1/public/deliveries/abcdefghijklmnopqrstuvwxyz012345", null).getStatus()).as("segue como GET").isEqualTo(200);
+        assertThat(visitor.post("/api/v1/public/deliveries/x", null).getStatus()).isEqualTo(410);
+
+        assertThat(RECEIVED).extracting(Received::path).containsExactly("/public/documents/ABCD-EFGH-JKMN-PQRS", "/public/deliveries/abcdefghijklmnopqrstuvwxyz012345");
+        assertThat(RECEIVED).extracting(Received::method).containsExactly("GET", "GET");
+        var claims = tokens.verify(RECEIVED.get(0).authorization().substring(12), InternalTokens.CLINICAL).orElseThrow();
+        assertThat(claims.seal()).isEqualTo("PUBLIC");
+        assertThat(claims.sub()).isEqualTo(new UUID(0, 0));
+        assertThat(claims.write()).isFalse();
+        assertThat(claims.sudoUntil()).isZero();
+
+        // o token público só registra as duas consultas públicas
+        String pub = RECEIVED.get(0).authorization().substring(12);
+        var other = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/internal/audit")
+                .header("Authorization", "DE-Internal " + pub).contentType("application/json").content("{\"action\":\"clinical.document_sign\"}"))
+                .andReturn().getResponse();
+        assertThat(other.getStatus()).isEqualTo(403);
+        var ok = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/internal/audit")
+                .header("Authorization", "DE-Internal " + pub).contentType("application/json").content("{\"action\":\"clinical.document_validate\"}"))
+                .andReturn().getResponse();
+        assertThat(ok.getStatus()).isEqualTo(201);
+
+        for (int i = 0; i < PublicDocumentsController.MAX_PER_IP; i++) visitor.get("/api/v1/public/documents/ABCD-EFGH-JKMN-PQRS");
+        assertThat(visitor.get("/api/v1/public/documents/ABCD-EFGH-JKMN-PQRS").getStatus()).as("limite por IP").isEqualTo(429);
+    }
+
     /** Roda por último: derruba a clinical-api de mentira. */
     @Test
     @Order(Integer.MAX_VALUE)
